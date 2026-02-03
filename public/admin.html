@@ -1,776 +1,858 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFC vCard Admin Dashboard</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFC vCard Admin Dashboard</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f7fa;
-            min-height: 100vh;
-        }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    color: #222;
+}
 
-        /* ─── LOGIN ─── */
-        #loginPage {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
+/* ─── LOGIN ─── */
+#loginPage {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+#loginPage.hidden { display:none; }
 
-        #loginPage.hidden { display: none; }
+.login-box {
+    background:#fff; padding:44px 40px; border-radius:16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    width:100%; max-width:400px;
+}
+.login-box h1 { text-align:center; color:#333; margin-bottom:28px; font-size:22px; }
 
-        .login-box {
-            background: white;
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            width: 100%;
-            max-width: 400px;
-        }
+/* ─── DASHBOARD ─── */
+#dashboardPage { display:none; }
+#dashboardPage.visible { display:block; }
 
-        .login-box h1 {
-            margin-bottom: 30px;
-            color: #333;
-            text-align: center;
-        }
+.navbar {
+    background:#fff; padding:14px 30px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.08);
+    display:flex; justify-content:space-between; align-items:center;
+    position:sticky; top:0; z-index:100;
+}
+.navbar h1 { color:#667eea; font-size:22px; cursor:pointer; user-select:none; }
+.navbar-right { display:flex; gap:14px; align-items:center; }
+#userEmail { color:#777; font-size:14px; }
 
-        /* ─── DASHBOARD ─── */
-        #dashboardPage { display: none; }
-        #dashboardPage.visible { display: block; }
+.container { max-width:1100px; margin:28px auto; padding:0 20px; }
 
-        .navbar {
-            background: white;
-            padding: 15px 30px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+/* ─── STAT CARDS ─── */
+.stats-grid {
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+    gap:18px; margin-bottom:26px;
+}
+.stat-card {
+    background:#fff; padding:22px 24px; border-radius:12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.07);
+}
+.stat-card h3 { color:#999; font-size:13px; font-weight:500; margin-bottom:6px; text-transform:uppercase; letter-spacing:.4px; }
+.stat-card .value { font-size:30px; font-weight:700; color:#667eea; }
 
-        .navbar h1 {
-            color: #667eea;
-            font-size: 24px;
-            cursor: pointer;
-            user-select: none;
-        }
+/* ─── SECTION ─── */
+.section {
+    background:#fff; padding:28px; border-radius:12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.07);
+    margin-bottom:24px;
+}
+.section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:22px; }
+.section-header h2 { color:#333; font-size:18px; }
 
-        .navbar-actions {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
+/* ─── BUTTONS ─── */
+.btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color:#fff; border:none; padding:10px 22px; border-radius:8px;
+    cursor:pointer; font-size:14px; font-weight:500;
+    transition: transform .15s, box-shadow .15s;
+}
+.btn:hover { transform:translateY(-1px); box-shadow: 0 4px 14px rgba(102,126,234,.35); }
+.btn-gray   { background:#6c757d; }
+.btn-danger { background:#dc3545; }
+.btn-sm     { padding:7px 14px; font-size:13px; }
+.btn-xs     { padding:5px 10px; font-size:12px; border-radius:6px; }
 
-        #userEmail { color: #666; }
+/* ─── TOGGLE (Active / Inactive) ─── */
+.toggle-wrap { display:inline-flex; align-items:center; gap:6px; }
+.toggle-track {
+    width:44px; height:24px; border-radius:12px;
+    background:#ccc; position:relative; cursor:pointer;
+    transition: background .2s;
+}
+.toggle-track.on { background:#28a745; }
+.toggle-track .knob {
+    width:20px; height:20px; border-radius:50%;
+    background:#fff; position:absolute; top:2px; left:2px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.25);
+    transition: left .18s;
+}
+.toggle-track.on .knob { left:22px; }
+.toggle-label { font-size:12px; font-weight:600; min-width:56px; }
+.toggle-label.active   { color:#155724; }
+.toggle-label.inactive { color:#721c24; }
 
-        .container {
-            max-width: 1200px;
-            margin: 30px auto;
-            padding: 0 20px;
-        }
+/* ─── FORMS ─── */
+.form-group { margin-bottom:16px; }
+.form-group label { display:block; margin-bottom:5px; color:#444; font-weight:500; font-size:13px; }
+.form-group label .sort-hint { color:#999; font-weight:400; font-size:11px; margin-left:6px; }
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width:100%; padding:10px 13px; border:1px solid #ddd; border-radius:8px;
+    font-size:14px; font-family:inherit; transition:border-color .2s;
+    background:#fff;
+}
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus { outline:none; border-color:#667eea; }
+.form-group textarea { resize:vertical; min-height:64px; }
+.form-group small { color:#999; font-size:11px; }
 
-        /* ─── STATS ─── */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 
-        .stat-card {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
+/* ─── DYNAMIC SOCIAL FIELDS ─── */
+.social-add-row { display:flex; gap:8px; align-items:flex-end; margin-bottom:4px; }
+.social-add-row .form-group { margin-bottom:0; flex:1; }
+.social-field-row {
+    display:flex; gap:8px; align-items:center;
+    background:#f7f8fa; border:1px solid #eee; border-radius:8px;
+    padding:8px 10px; margin-bottom:8px;
+}
+.social-field-row .sf-label {
+    min-width:90px; font-size:13px; font-weight:600; color:#444;
+    display:flex; align-items:center; gap:5px;
+}
+.social-field-row input { flex:1; }
+.sf-remove {
+    background:none; border:none; color:#c0392b; font-size:18px;
+    cursor:pointer; line-height:1; padding:0 4px;
+}
+.sf-remove:hover { color:#a93226; }
 
-        .stat-card h3 {
-            color: #888;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 8px;
-        }
+/* ─── CARD LIST ITEMS ─── */
+.card-item {
+    border:1px solid #e2e2e2; border-radius:10px;
+    padding:18px 20px; background:#fafbfc; margin-bottom:14px;
+}
+.card-item-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; flex-wrap:wrap; gap:10px; }
+.card-item-title h3 { color:#333; margin-bottom:3px; }
+.card-item-title p  { color:#888; font-size:13px; }
+.card-item-actions  { display:flex; gap:7px; align-items:center; flex-wrap:wrap; }
 
-        .stat-card .value {
-            font-size: 32px;
-            font-weight: 700;
-            color: #667eea;
-        }
+.card-item-info {
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px,1fr));
+    gap:10px; margin-top:12px; padding-top:12px;
+    border-top:1px solid #eee;
+}
+.info-label { color:#aaa; font-size:10px; text-transform:uppercase; letter-spacing:.5px; margin-bottom:2px; }
+.info-value { color:#444; font-weight:500; font-size:13px; }
+.info-value a { color:#667eea; text-decoration:none; }
+.info-value a:hover { text-decoration:underline; }
 
-        /* ─── SECTION ─── */
-        .section {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
-        }
+/* ─── EMPTY STATE ─── */
+.empty-state { text-align:center; padding:56px 20px; }
+.empty-state h3 { color:#666; margin-bottom:6px; }
+.empty-state p  { color:#aaa; font-size:14px; }
 
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-        }
+/* ─── ALERTS ─── */
+.alert { padding:12px 16px; border-radius:8px; font-size:14px; margin-bottom:16px; }
+.alert-error   { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
+.alert-success { background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
+.alert.hidden  { display:none; }
 
-        .section-header h2 { color: #333; }
+/* ─── MODAL ─── */
+.modal-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.5); z-index:1000;
+    align-items:center; justify-content:center;
+}
+.modal-overlay.open { display:flex; }
 
-        /* ─── BUTTONS ─── */
-        .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
+.modal-box {
+    background:#fff; padding:30px; border-radius:14px;
+    width:90%; max-width:600px; max-height:90vh; overflow-y:auto;
+    position:relative;
+}
+.modal-box h2 { color:#333; margin-bottom:20px; font-size:20px; }
+.modal-close {
+    position:absolute; top:14px; right:18px;
+    font-size:24px; cursor:pointer; color:#aaa;
+    background:none; border:none; line-height:1;
+}
+.modal-close:hover { color:#666; }
+.modal-actions { display:flex; gap:10px; margin-top:10px; }
 
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102,126,234,0.4);
-        }
+/* ─── STATS DATE CONTROLS ─── */
+.stats-controls {
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+    margin-bottom:20px; padding-bottom:16px;
+    border-bottom:1px solid #eee;
+}
+.stats-controls label { font-size:13px; color:#666; font-weight:500; }
+.stats-controls input[type=date] {
+    padding:6px 10px; border:1px solid #ddd; border-radius:6px;
+    font-size:13px; font-family:inherit; cursor:pointer;
+}
+.stats-controls input[type=date]:focus { outline:none; border-color:#667eea; }
 
-        .btn-secondary { background: #6c757d; }
-        .btn-danger { background: #dc3545; }
-        .btn-small { padding: 8px 16px; font-size: 13px; }
+.preset-pills { display:flex; gap:5px; margin-left:8px; }
+.pill {
+    padding:5px 11px; border-radius:16px; font-size:12px; font-weight:600;
+    border:1px solid #ddd; background:#fff; cursor:pointer; color:#555;
+    transition: background .15s, color .15s, border-color .15s;
+}
+.pill:hover          { background:#eef0ff; border-color:#667eea; color:#667eea; }
+.pill.active-pill    { background:#667eea; color:#fff; border-color:#667eea; }
 
-        /* ─── FORMS ─── */
-        .form-group { margin-bottom: 18px; }
+.stats-summary {
+    display:flex; gap:24px; margin-bottom:18px; flex-wrap:wrap;
+}
+.stats-summary .s-item { text-align:center; }
+.stats-summary .s-num  { font-size:24px; font-weight:700; color:#667eea; }
+.stats-summary .s-lbl  { font-size:11px; color:#999; text-transform:uppercase; letter-spacing:.4px; margin-top:2px; }
 
-        .form-group label {
-            display: block;
-            margin-bottom: 6px;
-            color: #444;
-            font-weight: 500;
-            font-size: 14px;
-        }
+.daily-row {
+    display:flex; justify-content:space-between;
+    padding:8px 0; border-bottom:1px solid #f0f0f0;
+    font-size:14px;
+}
+.daily-row:last-child { border-bottom:none; }
+.daily-row strong { color:#667eea; }
 
-        .form-group input,
-        .form-group textarea {
-            width: 100%;
-            padding: 11px 14px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-            font-family: inherit;
-            transition: border-color 0.2s;
-        }
+.log-row {
+    padding:8px 0; border-bottom:1px solid #f0f0f0; font-size:13px;
+}
+.log-row:last-child { border-bottom:none; }
+.log-row .log-time  { font-weight:600; color:#333; }
+.log-row .log-ip    { color:#999; margin-top:2px; }
 
-        .form-group input:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
+.no-data { color:#aaa; font-size:14px; padding:20px 0; text-align:center; }
 
-        .form-group textarea { resize: vertical; min-height: 70px; }
-        .form-group small { color: #999; font-size: 12px; }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 18px;
-        }
-
-        /* ─── CARD LIST ─── */
-        .card-item {
-            border: 1px solid #e4e4e4;
-            border-radius: 10px;
-            padding: 20px;
-            background: #fafafa;
-            margin-bottom: 16px;
-        }
-
-        .card-item-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 14px;
-        }
-
-        .card-item-title h3 { color: #333; margin-bottom: 4px; }
-        .card-item-title p { color: #777; font-size: 14px; }
-
-        .card-item-actions { display: flex; gap: 8px; }
-
-        .card-item-info {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 12px;
-            margin-top: 14px;
-        }
-
-        .info-label { color: #999; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
-        .info-value { color: #333; font-weight: 500; font-size: 14px; }
-        .info-value a { color: #667eea; text-decoration: none; }
-        .info-value a:hover { text-decoration: underline; }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-top: 6px;
-        }
-
-        .badge-active { background: #d4edda; color: #155724; }
-        .badge-inactive { background: #f8d7da; color: #721c24; }
-
-        /* ─── EMPTY STATE ─── */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-        }
-
-        .empty-state h3 { color: #555; margin-bottom: 8px; }
-        .empty-state p { color: #999; }
-
-        /* ─── ALERTS ─── */
-        .alert {
-            padding: 14px 18px;
-            border-radius: 8px;
-            margin-bottom: 18px;
-            font-size: 14px;
-        }
-
-        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .alert.hidden { display: none; }
-
-        /* ─── MODAL ─── */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.55);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-overlay.open { display: flex; }
-
-        .modal-box {
-            background: white;
-            padding: 32px;
-            border-radius: 14px;
-            width: 90%;
-            max-width: 580px;
-            max-height: 88vh;
-            overflow-y: auto;
-            position: relative;
-        }
-
-        .modal-box h2 { color: #333; margin-bottom: 22px; }
-
-        .modal-close {
-            position: absolute;
-            top: 16px;
-            right: 20px;
-            font-size: 26px;
-            cursor: pointer;
-            color: #aaa;
-            background: none;
-            border: none;
-            line-height: 1;
-        }
-
-        .modal-close:hover { color: #666; }
-
-        .modal-actions { display: flex; gap: 10px; margin-top: 8px; }
-
-        /* ─── RESPONSIVE ─── */
-        @media (max-width: 680px) {
-            .form-row { grid-template-columns: 1fr; }
-            .card-item-header { flex-direction: column; }
-            .card-item-actions { margin-top: 12px; flex-wrap: wrap; }
-            .navbar { padding: 12px 18px; }
-            .navbar h1 { font-size: 20px; }
-        }
-    </style>
+/* ─── RESPONSIVE ─── */
+@media (max-width:680px) {
+    .form-row { grid-template-columns:1fr; }
+    .card-item-header { flex-direction:column; }
+    .navbar { padding:12px 16px; }
+    .navbar h1 { font-size:18px; }
+    .stats-controls { flex-direction:column; align-items:flex-start; }
+}
+</style>
 </head>
 <body>
 
-<!-- ════════════ LOGIN PAGE ════════════ -->
+<!-- ═══ LOGIN ═══ -->
 <div id="loginPage">
-    <div class="login-box">
-        <h1>🔐 Admin Login</h1>
-        <div id="loginError" class="alert alert-error hidden"></div>
-        <form id="loginForm">
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" id="loginEmail" autocomplete="off" required>
-            </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" id="loginPassword" required>
-            </div>
-            <button type="submit" class="btn" style="width:100%;padding:14px;">Login</button>
-        </form>
-    </div>
+  <div class="login-box">
+    <h1>🔐 Admin Login</h1>
+    <div id="loginError" class="alert alert-error hidden"></div>
+    <form id="loginForm">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" autocomplete="off" required>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" required>
+      </div>
+      <button type="submit" class="btn" style="width:100%;padding:12px;">Login</button>
+    </form>
+  </div>
 </div>
 
-<!-- ════════════ DASHBOARD ════════════ -->
+<!-- ═══ DASHBOARD ═══ -->
 <div id="dashboardPage">
-    <nav class="navbar">
-        <h1 id="brandTitle">📇 NFC vCard Manager</h1>
-        <div class="navbar-actions">
-            <span id="userEmail"></span>
-            <button id="logoutBtn" class="btn btn-secondary btn-small">Logout</button>
-        </div>
-    </nav>
-
-    <div class="container">
-        <div class="stats-grid">
-            <div class="stat-card">
-                <h3>Total Cards</h3>
-                <div class="value" id="statTotal">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>Active Cards</h3>
-                <div class="value" id="statActive">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>Total Scans</h3>
-                <div class="value" id="statScans">0</div>
-            </div>
-        </div>
-
-        <div class="section">
-            <div class="section-header">
-                <h2>My vCards</h2>
-                <button id="createBtn" class="btn">+ Create New Card</button>
-            </div>
-            <div id="successAlert" class="alert alert-success hidden"></div>
-            <div id="cardsContainer">
-                <div class="empty-state">
-                    <h3>No cards yet</h3>
-                    <p>Create your first vCard to get started</p>
-                </div>
-            </div>
-        </div>
+  <nav class="navbar">
+    <h1 id="brandTitle">📇 NFC vCard Manager</h1>
+    <div class="navbar-right">
+      <span id="userEmail"></span>
+      <button id="logoutBtn" class="btn btn-gray btn-sm">Logout</button>
     </div>
+  </nav>
+
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-card"><h3>Total Cards</h3><div class="value" id="statTotal">0</div></div>
+      <div class="stat-card"><h3>Active Cards</h3><div class="value" id="statActive">0</div></div>
+      <div class="stat-card"><h3>Total Scans</h3><div class="value" id="statScans">0</div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <h2>My vCards</h2>
+        <button id="createBtn" class="btn">+ Create New Card</button>
+      </div>
+      <div id="successAlert" class="alert alert-success hidden"></div>
+      <div id="cardsContainer">
+        <div class="empty-state"><h3>No cards yet</h3><p>Create your first vCard to get started</p></div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- ════════════ CREATE / EDIT MODAL ════════════ -->
+<!-- ═══ CREATE / EDIT MODAL ═══ -->
 <div id="cardModal" class="modal-overlay">
-    <div class="modal-box">
-        <button class="modal-close" id="cardModalClose">&times;</button>
-        <h2 id="modalTitle">Create New vCard</h2>
+  <div class="modal-box">
+    <button class="modal-close" id="cardModalClose">&times;</button>
+    <h2 id="modalTitle">Create New vCard</h2>
 
-        <form id="cardForm">
-            <input type="hidden" id="editingId" value="">
+    <form id="cardForm">
+      <input type="hidden" id="editingId" value="">
 
-            <div class="form-group">
-                <label>Card ID (used in URL) *</label>
-                <input type="text" id="cardIdInput" placeholder="my-card-123" required>
-                <small>Only letters, numbers, hyphens and underscores. Example: john-smith</small>
-            </div>
+      <div class="form-group">
+        <label>Card ID (used in URL) *</label>
+        <input type="text" id="cardIdInput" placeholder="john-smith" required>
+        <small>Letters, numbers, hyphens, underscores only.</small>
+      </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Full Name *</label>
-                    <input type="text" id="cardName" required>
-                </div>
-                <div class="form-group">
-                    <label>Job Title</label>
-                    <input type="text" id="cardTitle">
-                </div>
-            </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Full Name * <span class="sort-hint">[First Last]</span></label>
+          <input type="text" id="cardName" placeholder="John Smith" required>
+        </div>
+        <div class="form-group">
+          <label>Job Title</label>
+          <input type="text" id="cardTitle" placeholder="Software Engineer">
+        </div>
+      </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Email *</label>
-                    <input type="email" id="cardEmail" required>
-                </div>
-                <div class="form-group">
-                    <label>Phone</label>
-                    <input type="tel" id="cardPhone">
-                </div>
-            </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="email" id="cardEmail" required>
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="tel" id="cardPhone" placeholder="+1 555 123 4567">
+        </div>
+      </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Website</label>
-                    <input type="url" id="cardWebsite" placeholder="https://example.com">
-                </div>
-                <div class="form-group">
-                    <label>Company</label>
-                    <input type="text" id="cardCompany">
-                </div>
-            </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Website</label>
+          <input type="url" id="cardWebsite" placeholder="https://example.com">
+        </div>
+        <div class="form-group">
+          <label>Company</label>
+          <input type="text" id="cardCompany">
+        </div>
+      </div>
 
-            <div class="form-group">
-                <label>Address</label>
-                <textarea id="cardAddress" placeholder="123 Main Street, City, Country"></textarea>
-            </div>
+      <div class="form-group">
+        <label>Address</label>
+        <textarea id="cardAddress" placeholder="123 Main Street, City, Country"></textarea>
+      </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label>LinkedIn</label>
-                    <input type="url" id="cardLinkedin" placeholder="https://linkedin.com/in/…">
-                </div>
-                <div class="form-group">
-                    <label>Twitter / X</label>
-                    <input type="url" id="cardTwitter" placeholder="https://twitter.com/…">
-                </div>
-            </div>
+      <!-- ── Dynamic social / extra fields ── -->
+      <div style="margin-top:4px; margin-bottom:6px;">
+        <label style="display:block; margin-bottom:8px; color:#444; font-weight:500; font-size:13px;">
+          Social &amp; Extra Links
+        </label>
 
-            <div class="form-group">
-                <label>Instagram</label>
-                <input type="url" id="cardInstagram" placeholder="https://instagram.com/…">
-            </div>
+        <!-- existing dynamic rows render here -->
+        <div id="socialFieldsList"></div>
 
-            <div class="modal-actions">
-                <button type="submit" class="btn" id="cardSaveBtn">Save Card</button>
-                <button type="button" class="btn btn-secondary" id="cardCancelBtn">Cancel</button>
-            </div>
-        </form>
-    </div>
+        <!-- add-row -->
+        <div class="social-add-row">
+          <div class="form-group">
+            <select id="socialTypeSelect">
+              <!-- options injected by JS -->
+            </select>
+          </div>
+          <button type="button" id="socialAddBtn" class="btn btn-sm" style="white-space:nowrap;">+ Add</button>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="submit" class="btn">Save Card</button>
+        <button type="button" class="btn btn-gray" id="cardCancelBtn">Cancel</button>
+      </div>
+    </form>
+  </div>
 </div>
 
-<!-- ════════════ STATS MODAL ════════════ -->
+<!-- ═══ STATS MODAL ═══ -->
 <div id="statsModal" class="modal-overlay">
-    <div class="modal-box">
-        <button class="modal-close" id="statsModalClose">&times;</button>
-        <h2>Card Statistics</h2>
-        <div id="statsContent"></div>
+  <div class="modal-box" style="max-width:620px;">
+    <button class="modal-close" id="statsModalClose">&times;</button>
+    <h2>📊 Card Statistics</h2>
+
+    <!-- date controls -->
+    <div class="stats-controls">
+      <label>From</label>
+      <input type="date" id="statsFrom">
+      <label>To</label>
+      <input type="date" id="statsTo">
+      <div class="preset-pills">
+        <button class="pill" data-days="1">Today</button>
+        <button class="pill" data-days="7">7 d</button>
+        <button class="pill active-pill" data-days="30">30 d</button>
+        <button class="pill" data-days="90">90 d</button>
+        <button class="pill" data-days="0">All</button>
+      </div>
     </div>
+
+    <!-- summary numbers -->
+    <div class="stats-summary">
+      <div class="s-item"><div class="s-num" id="statLifetime">0</div><div class="s-lbl">Lifetime</div></div>
+      <div class="s-item"><div class="s-num" id="statRange">0</div><div class="s-lbl">In Range</div></div>
+    </div>
+
+    <!-- daily table -->
+    <h3 style="font-size:15px; color:#444; margin-bottom:10px;">Scans by Day</h3>
+    <div id="statsDailyList" style="max-height:220px; overflow-y:auto; margin-bottom:20px;"></div>
+
+    <!-- recent logs -->
+    <h3 style="font-size:15px; color:#444; margin-bottom:10px;">Recent Scan Logs</h3>
+    <div id="statsLogsList" style="max-height:220px; overflow-y:auto;"></div>
+  </div>
 </div>
 
-<!-- ════════════ SCRIPT ════════════ -->
+<!-- ═══ SCRIPT ═══ -->
 <script>
-(function () {
-    'use strict';
+(function(){
+'use strict';
 
-    /* ── state ── */
-    var token   = null;
-    var cards   = [];
+/* ── available social / extra field types ── */
+var FIELD_DEFS = [
+  { key:'linkedin',   label:'LinkedIn',   icon:'in', placeholder:'https://linkedin.com/in/…' },
+  { key:'twitter',    label:'Twitter / X', icon:'𝕏',  placeholder:'https://twitter.com/…' },
+  { key:'instagram',  label:'Instagram',  icon:'📷', placeholder:'https://instagram.com/…' },
+  { key:'facebook',   label:'Facebook',   icon:'f',  placeholder:'https://facebook.com/…' },
+  { key:'github',     label:'GitHub',     icon:'⌐',  placeholder:'https://github.com/…' },
+  { key:'tiktok',     label:'TikTok',     icon:'♪',  placeholder:'https://tiktok.com/@…' },
+  { key:'youtube',    label:'YouTube',    icon:'▶',  placeholder:'https://youtube.com/@…' },
+  { key:'portfolio',  label:'Portfolio',  icon:'🗂', placeholder:'https://portfolio.com/…' }
+];
 
-    /* ── DOM refs ── */
-    var loginPage      = document.getElementById('loginPage');
-    var dashPage       = document.getElementById('dashboardPage');
-    var loginForm      = document.getElementById('loginForm');
-    var loginError     = document.getElementById('loginError');
-    var logoutBtn      = document.getElementById('logoutBtn');
-    var brandTitle     = document.getElementById('brandTitle');
-    var userEmailEl    = document.getElementById('userEmail');
-    var createBtn      = document.getElementById('createBtn');
-    var cardsContainer = document.getElementById('cardsContainer');
-    var successAlert   = document.getElementById('successAlert');
+/* ── state ── */
+var token = null;
+var cards = [];
+var currentSocialFields = [];   // [{key, value}]  live in the modal
+var statsCurrentId = null;      // which card's stats modal is open
 
-    var cardModal      = document.getElementById('cardModal');
-    var cardModalClose = document.getElementById('cardModalClose');
-    var cardCancelBtn  = document.getElementById('cardCancelBtn');
-    var cardForm       = document.getElementById('cardForm');
-    var modalTitle     = document.getElementById('modalTitle');
-    var editingId      = document.getElementById('editingId');
+/* ── DOM ── */
+var loginPage      = document.getElementById('loginPage');
+var dashPage       = document.getElementById('dashboardPage');
+var loginError     = document.getElementById('loginError');
+var logoutBtn      = document.getElementById('logoutBtn');
+var brandTitle     = document.getElementById('brandTitle');
+var userEmailEl    = document.getElementById('userEmail');
+var createBtn      = document.getElementById('createBtn');
+var cardsContainer = document.getElementById('cardsContainer');
+var successAlert   = document.getElementById('successAlert');
 
-    var statsModal     = document.getElementById('statsModal');
-    var statsModalClose= document.getElementById('statsModalClose');
-    var statsContent   = document.getElementById('statsContent');
+var cardModal      = document.getElementById('cardModal');
+var cardForm       = document.getElementById('cardForm');
+var modalTitle     = document.getElementById('modalTitle');
+var editingId      = document.getElementById('editingId');
+var socialList     = document.getElementById('socialFieldsList');
+var socialSelect   = document.getElementById('socialTypeSelect');
+var socialAddBtn   = document.getElementById('socialAddBtn');
 
-    /* ── helpers ── */
-    function apiUrl(path) {
-        return window.location.origin + '/api' + path;
-    }
+var statsModal     = document.getElementById('statsModal');
+var statsFrom      = document.getElementById('statsFrom');
+var statsTo        = document.getElementById('statsTo');
 
-    function showLoginError(msg) {
-        loginError.textContent = msg;
-        loginError.classList.remove('hidden');
-    }
+/* ── util ── */
+function apiUrl(p){ return window.location.origin + '/api' + p; }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-    function hideLoginError() {
-        loginError.classList.add('hidden');
-    }
+function flashSuccess(msg){
+    successAlert.textContent = msg;
+    successAlert.classList.remove('hidden');
+    setTimeout(function(){ successAlert.classList.add('hidden'); }, 3000);
+}
+function openModal(el)  { el.classList.add('open'); }
+function closeModal(el) { el.classList.remove('open'); }
 
-    function flashSuccess(msg) {
-        successAlert.textContent = msg;
-        successAlert.classList.remove('hidden');
-        setTimeout(function () { successAlert.classList.add('hidden'); }, 3000);
-    }
+function toISODate(d){ return d.toISOString().slice(0,10); }
+function today(){ return toISODate(new Date()); }
+function daysAgo(n){ return toISODate(new Date(Date.now() - n*86400000)); }
 
-    function openModal(el)  { el.classList.add('open'); }
-    function closeModal(el) { el.classList.remove('open'); }
-
-    /* ── auth ── */
-    function goToDashboard() {
-        loginPage.classList.add('hidden');
-        dashPage.classList.add('visible');
-        loadCards();
-    }
-
-    function goToLogin() {
-        token = null;
-        try { localStorage.removeItem('nfc_token'); } catch(e){}
-        loginPage.classList.remove('hidden');
-        dashPage.classList.remove('visible');
-    }
-
-    /* ── login ── */
-    loginForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        hideLoginError();
-
-        var email    = document.getElementById('loginEmail').value.trim();
-        var password = document.getElementById('loginPassword').value;
-
-        fetch(apiUrl('/auth/login'), {
-            method  : 'POST',
-            headers : { 'Content-Type': 'application/json' },
-            body    : JSON.stringify({ email: email, password: password })
-        })
-        .then(function (res) { return res.json().then(function (d) { return { ok: res.ok, data: d }; }); })
-        .then(function (r) {
-            if (r.ok) {
-                token = r.data.token;
-                try { localStorage.setItem('nfc_token', token); } catch(e){}
-                userEmailEl.textContent = r.data.user.email;
-                goToDashboard();
-            } else {
-                showLoginError(r.data.error || 'Login failed');
-            }
-        })
-        .catch(function () { showLoginError('Connection error. Please try again.'); });
+/* ── populate the select once ── */
+(function buildSelect(){
+    FIELD_DEFS.forEach(function(f){
+        var o = document.createElement('option');
+        o.value = f.key;
+        o.textContent = f.label;
+        socialSelect.appendChild(o);
     });
+})();
 
-    /* ── logout ── */
-    logoutBtn.addEventListener('click', function () {
-        goToLogin();
-    });
+/* ── auth helpers ── */
+function goToDashboard(){
+    loginPage.classList.add('hidden');
+    dashPage.classList.add('visible');
+    loadCards();
+}
+function goToLogin(){
+    token = null;
+    try { localStorage.removeItem('nfc_token'); } catch(e){}
+    loginPage.classList.remove('hidden');
+    dashPage.classList.remove('visible');
+}
 
-    /* ── brand title → reload ── */
-    brandTitle.addEventListener('click', function () {
-        window.location.reload();
-    });
+/* ── login ── */
+document.getElementById('loginForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    loginError.classList.add('hidden');
+    var email    = document.getElementById('loginEmail').value.trim();
+    var password = document.getElementById('loginPassword').value;
 
-    /* ── load cards ── */
-    function loadCards() {
-        fetch(apiUrl('/vcards'), {
-            headers: { 'Authorization': 'Bearer ' + token }
-        })
-        .then(function (res) {
-            if (res.status === 401) { goToLogin(); return null; }
-            return res.json();
-        })
-        .then(function (data) {
-            if (!data) return;
-            cards = data;
-            renderCards();
-            renderStats();
-        })
-        .catch(function (err) { console.error('loadCards', err); });
-    }
-
-    /* ── render cards ── */
-    function renderCards() {
-        if (cards.length === 0) {
-            cardsContainer.innerHTML =
-                '<div class="empty-state"><h3>No cards yet</h3><p>Create your first vCard to get started</p></div>';
-            return;
-        }
-
-        cardsContainer.innerHTML = cards.map(function (c) {
-            return '<div class="card-item">' +
-                '<div class="card-item-header">' +
-                    '<div class="card-item-title">' +
-                        '<h3>' + esc(c.name) + '</h3>' +
-                        '<p>' + esc(c.title || 'No title') + '</p>' +
-                        '<span class="badge ' + (c.is_active ? 'badge-active' : 'badge-inactive') + '">' +
-                            (c.is_active ? 'Active' : 'Inactive') +
-                        '</span>' +
-                    '</div>' +
-                    '<div class="card-item-actions">' +
-                        '<button class="btn btn-small" data-action="stats" data-id="' + c.id + '">📊 Stats</button>' +
-                        '<button class="btn btn-small" data-action="edit"  data-id="' + c.id + '">✏️ Edit</button>' +
-                        '<button class="btn btn-danger btn-small" data-action="delete" data-id="' + c.id + '" data-name="' + esc(c.name) + '">🗑️</button>' +
-                    '</div>' +
-                '</div>' +
-                '<div class="card-item-info">' +
-                    infoRow('Card ID',   esc(c.card_id)) +
-                    infoRow('Email',     esc(c.email)) +
-                    infoRow('Phone',     esc(c.phone || '—')) +
-                    infoRow('Scans',     c.scan_count) +
-                    infoRow('Public URL','<a href="' + window.location.origin + '/card/' + esc(c.card_id) + '" target="_blank">View Card →</a>') +
-                '</div>' +
-            '</div>';
-        }).join('');
-    }
-
-    function infoRow(label, value) {
-        return '<div class="info-item"><div class="info-label">' + label + '</div><div class="info-value">' + value + '</div></div>';
-    }
-
-    function esc(s) {
-        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
-
-    /* ── render stats bar ── */
-    function renderStats() {
-        document.getElementById('statTotal').textContent  = cards.length;
-        document.getElementById('statActive').textContent = cards.filter(function(c){ return c.is_active; }).length;
-        document.getElementById('statScans').textContent  = cards.reduce(function(s,c){ return s + c.scan_count; }, 0);
-    }
-
-    /* ── card list button delegation ── */
-    cardsContainer.addEventListener('click', function (e) {
-        var btn = e.target.closest('[data-action]');
-        if (!btn) return;
-
-        var action = btn.getAttribute('data-action');
-        var id     = parseInt(btn.getAttribute('data-id'), 10);
-
-        if (action === 'edit')   openEditModal(id);
-        if (action === 'stats')  openStatsModal(id);
-        if (action === 'delete') deleteCard(id, btn.getAttribute('data-name'));
-    });
-
-    /* ── CREATE modal ── */
-    createBtn.addEventListener('click', function () {
-        modalTitle.textContent = 'Create New vCard';
-        cardForm.reset();
-        editingId.value = '';
-        document.getElementById('cardIdInput').readOnly = false;
-        openModal(cardModal);
-    });
-
-    cardModalClose.addEventListener('click', function () { closeModal(cardModal); });
-    cardCancelBtn.addEventListener('click',  function () { closeModal(cardModal); });
-
-    /* ── EDIT modal ── */
-    function openEditModal(id) {
-        var c = cards.find(function (x) { return x.id === id; });
-        if (!c) return;
-
-        modalTitle.textContent = 'Edit vCard';
-        editingId.value = c.id;
-
-        document.getElementById('cardIdInput').value    = c.card_id;
-        document.getElementById('cardIdInput').readOnly = true;
-        document.getElementById('cardName').value       = c.name      || '';
-        document.getElementById('cardTitle').value      = c.title     || '';
-        document.getElementById('cardEmail').value      = c.email     || '';
-        document.getElementById('cardPhone').value      = c.phone     || '';
-        document.getElementById('cardWebsite').value    = c.website   || '';
-        document.getElementById('cardCompany').value    = c.company   || '';
-        document.getElementById('cardAddress').value    = c.address   || '';
-        document.getElementById('cardLinkedin').value   = c.linkedin  || '';
-        document.getElementById('cardTwitter').value    = c.twitter   || '';
-        document.getElementById('cardInstagram').value  = c.instagram || '';
-
-        openModal(cardModal);
-    }
-
-    /* ── SAVE card (create or update) ── */
-    cardForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-
-        var id = editingId.value;
-        var payload = {
-            card_id   : document.getElementById('cardIdInput').value.trim(),
-            name      : document.getElementById('cardName').value.trim(),
-            title     : document.getElementById('cardTitle').value.trim(),
-            email     : document.getElementById('cardEmail').value.trim(),
-            phone     : document.getElementById('cardPhone').value.trim(),
-            website   : document.getElementById('cardWebsite').value.trim(),
-            company   : document.getElementById('cardCompany').value.trim(),
-            address   : document.getElementById('cardAddress').value.trim(),
-            linkedin  : document.getElementById('cardLinkedin').value.trim(),
-            twitter   : document.getElementById('cardTwitter').value.trim(),
-            instagram : document.getElementById('cardInstagram').value.trim(),
-            is_active : 1
-        };
-
-        var url    = id ? apiUrl('/vcards/' + id) : apiUrl('/vcards');
-        var method = id ? 'PUT' : 'POST';
-
-        fetch(url, {
-            method  : method,
-            headers : { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-            body    : JSON.stringify(payload)
-        })
-        .then(function (res) { return res.json().then(function(d){ return { ok: res.ok, data: d }; }); })
-        .then(function (r) {
-            if (r.ok) {
-                closeModal(cardModal);
-                flashSuccess(id ? 'Card updated!' : 'Card created!');
-                loadCards();
-            } else {
-                alert('Error: ' + (r.data.error || 'Something went wrong'));
-            }
-        })
-        .catch(function () { alert('Connection error. Please try again.'); });
-    });
-
-    /* ── DELETE card ── */
-    function deleteCard(id, name) {
-        if (!confirm('Delete "' + name + '"?')) return;
-
-        fetch(apiUrl('/vcards/' + id), {
-            method  : 'DELETE',
-            headers : { 'Authorization': 'Bearer ' + token }
-        })
-        .then(function (res) {
-            if (res.ok) { flashSuccess('Card deleted!'); loadCards(); }
-        })
-        .catch(function () { alert('Connection error.'); });
-    }
-
-    /* ── STATS modal ── */
-    function openStatsModal(id) {
-        fetch(apiUrl('/vcards/' + id + '/stats'), {
-            headers: { 'Authorization': 'Bearer ' + token }
-        })
-        .then(function (res) { return res.json(); })
-        .then(function (stats) {
-            var html = '<p style="font-size:18px;font-weight:700;margin-bottom:16px;">Total Scans: ' + stats.total_scans + '</p>';
-
-            if (stats.daily_scans && stats.daily_scans.length) {
-                html += '<h3 style="margin-bottom:10px;">Last 30 days</h3>';
-                stats.daily_scans.forEach(function (d) {
-                    html += '<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #eee;">' +
-                                '<span>' + d.date + '</span><strong>' + d.count + ' scans</strong></div>';
-                });
-            }
-
-            if (stats.recent_logs && stats.recent_logs.length) {
-                html += '<h3 style="margin:24px 0 10px;">Recent Scans</h3>';
-                html += '<div style="max-height:260px;overflow-y:auto;">';
-                stats.recent_logs.forEach(function (l) {
-                    html += '<div style="padding:9px 0;border-bottom:1px solid #eee;font-size:13px;">' +
-                                '<strong>' + new Date(l.scanned_at).toLocaleString() + '</strong>' +
-                                '<div style="color:#888;">' + (l.ip_address||'') + '</div></div>';
-                });
-                html += '</div>';
-            }
-
-            statsContent.innerHTML = html;
-            openModal(statsModal);
-        })
-        .catch(function () { alert('Could not load stats.'); });
-    }
-
-    statsModalClose.addEventListener('click', function () { closeModal(statsModal); });
-
-    /* ── INIT: restore token from storage ── */
-    (function init() {
-        try { token = localStorage.getItem('nfc_token'); } catch(e){}
-
-        if (token) {
+    fetch(apiUrl('/auth/login'), {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({email:email, password:password})
+    })
+    .then(function(r){ return r.json().then(function(d){ return {ok:r.ok, data:d}; }); })
+    .then(function(r){
+        if(r.ok){
+            token = r.data.token;
+            try { localStorage.setItem('nfc_token', token); } catch(e){}
+            userEmailEl.textContent = r.data.user.email;
             goToDashboard();
+        } else {
+            loginError.textContent = r.data.error || 'Login failed';
+            loginError.classList.remove('hidden');
         }
-        // else: login page is already visible
-    })();
+    })
+    .catch(function(){ loginError.textContent='Connection error.'; loginError.classList.remove('hidden'); });
+});
+
+logoutBtn.addEventListener('click', goToLogin);
+brandTitle.addEventListener('click', function(){ window.location.reload(); });
+
+/* ── load & render cards ── */
+function loadCards(){
+    fetch(apiUrl('/vcards'), { headers:{'Authorization':'Bearer '+token} })
+    .then(function(r){ if(r.status===401){goToLogin();return null;} return r.json(); })
+    .then(function(data){
+        if(!data) return;
+        cards = data;
+        renderCards();
+        renderTopStats();
+    })
+    .catch(function(e){ console.error('loadCards',e); });
+}
+
+function renderCards(){
+    if(!cards.length){
+        cardsContainer.innerHTML = '<div class="empty-state"><h3>No cards yet</h3><p>Create your first vCard to get started</p></div>';
+        return;
+    }
+    cardsContainer.innerHTML = cards.map(function(c){
+        var activeClass = c.is_active ? 'on' : '';
+        var labelClass  = c.is_active ? 'active' : 'inactive';
+        var labelText   = c.is_active ? 'Active' : 'Inactive';
+
+        return '<div class="card-item">' +
+          '<div class="card-item-header">' +
+            '<div class="card-item-title">' +
+              '<h3>' + esc(c.name) + '</h3>' +
+              '<p>' + esc(c.title || 'No title') + '</p>' +
+            '</div>' +
+            '<div class="card-item-actions">' +
+              // ── toggle ──
+              '<div class="toggle-wrap" data-action="toggle" data-id="'+c.id+'">' +
+                '<div class="toggle-track '+activeClass+'"><div class="knob"></div></div>' +
+                '<span class="toggle-label '+labelClass+'">'+labelText+'</span>' +
+              '</div>' +
+              '<button class="btn btn-sm" data-action="stats"  data-id="'+c.id+'">📊</button>' +
+              '<button class="btn btn-sm" data-action="edit"   data-id="'+c.id+'">✏️</button>' +
+              '<button class="btn btn-danger btn-sm" data-action="delete" data-id="'+c.id+'" data-name="'+esc(c.name)+'">🗑️</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="card-item-info">' +
+            infoRow('Card ID', esc(c.card_id)) +
+            infoRow('Email',   esc(c.email)) +
+            infoRow('Phone',   esc(c.phone||'—')) +
+            infoRow('Scans',   c.scan_count) +
+            infoRow('Public URL','<a href="'+window.location.origin+'/card/'+esc(c.card_id)+'" target="_blank">View Card →</a>') +
+          '</div>' +
+        '</div>';
+    }).join('');
+}
+
+function infoRow(label,val){
+    return '<div class="info-item"><div class="info-label">'+label+'</div><div class="info-value">'+val+'</div></div>';
+}
+
+function renderTopStats(){
+    document.getElementById('statTotal').textContent  = cards.length;
+    document.getElementById('statActive').textContent = cards.filter(function(c){return c.is_active;}).length;
+    document.getElementById('statScans').textContent  = cards.reduce(function(s,c){return s+c.scan_count;},0);
+}
+
+/* ── card-list delegation (toggle, edit, stats, delete) ── */
+cardsContainer.addEventListener('click', function(e){
+    // toggle
+    var tw = e.target.closest('.toggle-wrap[data-action="toggle"]');
+    if(tw){ toggleActive(parseInt(tw.getAttribute('data-id'),10)); return; }
+
+    var btn = e.target.closest('[data-action]');
+    if(!btn) return;
+    var action = btn.getAttribute('data-action');
+    var id     = parseInt(btn.getAttribute('data-id'),10);
+
+    if(action==='edit')   openEditModal(id);
+    if(action==='stats')  openStatsModal(id);
+    if(action==='delete') deleteCard(id, btn.getAttribute('data-name'));
+});
+
+/* ── toggle Active / Inactive (immediate PUT) ── */
+function toggleActive(id){
+    var card = cards.find(function(c){ return c.id===id; });
+    if(!card) return;
+    var newVal = card.is_active ? 0 : 1;
+
+    fetch(apiUrl('/vcards/'+id), {
+        method:'PUT',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body: JSON.stringify({ is_active: newVal })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(){
+        card.is_active = newVal;   // optimistic
+        renderCards();
+        renderTopStats();
+        flashSuccess(newVal ? 'Card activated!' : 'Card deactivated!');
+    })
+    .catch(function(){ alert('Connection error.'); });
+}
+
+/* ── CREATE modal ── */
+createBtn.addEventListener('click', function(){
+    modalTitle.textContent = 'Create New vCard';
+    cardForm.reset();
+    editingId.value = '';
+    document.getElementById('cardIdInput').readOnly = false;
+    currentSocialFields = [];
+    renderSocialFields();
+    openModal(cardModal);
+});
+
+document.getElementById('cardModalClose').addEventListener('click', function(){ closeModal(cardModal); });
+document.getElementById('cardCancelBtn').addEventListener('click',  function(){ closeModal(cardModal); });
+
+/* ── EDIT modal ── */
+function openEditModal(id){
+    var c = cards.find(function(x){ return x.id===id; });
+    if(!c) return;
+
+    modalTitle.textContent = 'Edit vCard';
+    editingId.value = c.id;
+
+    document.getElementById('cardIdInput').value    = c.card_id;
+    document.getElementById('cardIdInput').readOnly = true;
+    document.getElementById('cardName').value       = c.name      || '';
+    document.getElementById('cardTitle').value      = c.title     || '';
+    document.getElementById('cardEmail').value      = c.email     || '';
+    document.getElementById('cardPhone').value      = c.phone     || '';
+    document.getElementById('cardWebsite').value    = c.website   || '';
+    document.getElementById('cardCompany').value    = c.company   || '';
+    document.getElementById('cardAddress').value    = c.address   || '';
+
+    // populate social fields from extra_fields object
+    var ef = c.extra_fields || {};
+    currentSocialFields = [];
+    FIELD_DEFS.forEach(function(def){
+        if(ef[def.key]) currentSocialFields.push({key:def.key, value:ef[def.key]});
+    });
+    renderSocialFields();
+
+    openModal(cardModal);
+}
+
+/* ── social fields: render / add / remove ── */
+function renderSocialFields(){
+    socialList.innerHTML = '';
+    currentSocialFields.forEach(function(sf, idx){
+        var def = FIELD_DEFS.find(function(d){ return d.key===sf.key; }) || {label:sf.key, icon:'🔗', placeholder:''};
+        var row = document.createElement('div');
+        row.className = 'social-field-row';
+        row.innerHTML =
+            '<span class="sf-label">'+def.icon+' '+esc(def.label)+'</span>' +
+            '<input type="url" class="sf-input" placeholder="'+esc(def.placeholder)+'" value="'+esc(sf.value)+'" data-idx="'+idx+'">' +
+            '<button type="button" class="sf-remove" data-idx="'+idx+'">&times;</button>';
+        socialList.appendChild(row);
+    });
+
+    // live-update currentSocialFields on input
+    socialList.querySelectorAll('.sf-input').forEach(function(inp){
+        inp.addEventListener('input', function(){
+            currentSocialFields[parseInt(this.getAttribute('data-idx'),10)].value = this.value;
+        });
+    });
+    // remove buttons
+    socialList.querySelectorAll('.sf-remove').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            currentSocialFields.splice(parseInt(this.getAttribute('data-idx'),10), 1);
+            renderSocialFields();
+        });
+    });
+
+    // refresh select: hide already-added keys
+    var addedKeys = currentSocialFields.map(function(s){ return s.key; });
+    Array.from(socialSelect.options).forEach(function(o){
+        o.disabled = addedKeys.indexOf(o.value) !== -1;
+    });
+    // auto-select first enabled
+    var firstEnabled = Array.from(socialSelect.options).find(function(o){ return !o.disabled; });
+    if(firstEnabled) socialSelect.value = firstEnabled.value;
+}
+
+socialAddBtn.addEventListener('click', function(){
+    var key = socialSelect.value;
+    if(!key) return;
+    if(currentSocialFields.find(function(s){ return s.key===key; })) return; // already exists
+    currentSocialFields.push({key:key, value:''});
+    renderSocialFields();
+});
+
+/* ── SAVE card ── */
+cardForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    var id = editingId.value;
+
+    // build extra_fields object from currentSocialFields
+    var ef = {};
+    currentSocialFields.forEach(function(sf){ if(sf.value.trim()) ef[sf.key] = sf.value.trim(); });
+
+    var payload = {
+        card_id   : document.getElementById('cardIdInput').value.trim(),
+        name      : document.getElementById('cardName').value.trim(),
+        title     : document.getElementById('cardTitle').value.trim(),
+        email     : document.getElementById('cardEmail').value.trim(),
+        phone     : document.getElementById('cardPhone').value.trim(),
+        website   : document.getElementById('cardWebsite').value.trim(),
+        company   : document.getElementById('cardCompany').value.trim(),
+        address   : document.getElementById('cardAddress').value.trim(),
+        extra_fields : ef,
+        is_active : 1
+    };
+
+    var url    = id ? apiUrl('/vcards/'+id) : apiUrl('/vcards');
+    var method = id ? 'PUT' : 'POST';
+
+    fetch(url, {
+        method:method,
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body: JSON.stringify(payload)
+    })
+    .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,data:d}; }); })
+    .then(function(r){
+        if(r.ok){
+            closeModal(cardModal);
+            flashSuccess(id ? 'Card updated!' : 'Card created!');
+            loadCards();
+        } else {
+            alert('Error: '+(r.data.error||'Something went wrong'));
+        }
+    })
+    .catch(function(){ alert('Connection error.'); });
+});
+
+/* ── DELETE ── */
+function deleteCard(id, name){
+    if(!confirm('Delete "'+name+'"?')) return;
+    fetch(apiUrl('/vcards/'+id), { method:'DELETE', headers:{'Authorization':'Bearer '+token} })
+    .then(function(r){ if(r.ok){ flashSuccess('Card deleted!'); loadCards(); } })
+    .catch(function(){ alert('Connection error.'); });
+}
+
+/* ── STATS MODAL ── */
+// preset pills
+document.querySelectorAll('.pill').forEach(function(pill){
+    pill.addEventListener('click', function(){
+        document.querySelectorAll('.pill').forEach(function(p){ p.classList.remove('active-pill'); });
+        this.classList.add('active-pill');
+
+        var days = parseInt(this.getAttribute('data-days'),10);
+        if(days === 0){
+            // "All" — set from to a very old date
+            statsFrom.value = '2020-01-01';
+            statsTo.value   = today();
+        } else {
+            statsFrom.value = daysAgo(days - 1);
+            statsTo.value   = today();
+        }
+        fetchStats();
+    });
+});
+
+// manual date change
+statsFrom.addEventListener('change', function(){ clearActivePill(); fetchStats(); });
+statsTo.addEventListener('change',   function(){ clearActivePill(); fetchStats(); });
+
+function clearActivePill(){
+    document.querySelectorAll('.pill').forEach(function(p){ p.classList.remove('active-pill'); });
+}
+
+function openStatsModal(id){
+    statsCurrentId = id;
+    // default to 30-day pill
+    document.querySelectorAll('.pill').forEach(function(p){ p.classList.remove('active-pill'); });
+    document.querySelector('.pill[data-days="30"]').classList.add('active-pill');
+    statsFrom.value = daysAgo(29);
+    statsTo.value   = today();
+
+    openModal(statsModal);
+    fetchStats();
+}
+document.getElementById('statsModalClose').addEventListener('click', function(){ closeModal(statsModal); });
+
+function fetchStats(){
+    if(statsCurrentId === null) return;
+    var from = statsFrom.value;
+    var to   = statsTo.value;
+
+    fetch(apiUrl('/vcards/'+statsCurrentId+'/stats?from='+from+'&to='+to), {
+        headers:{'Authorization':'Bearer '+token}
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(stats){ renderStats(stats); })
+    .catch(function(){ alert('Could not load stats.'); });
+}
+
+function renderStats(stats){
+    document.getElementById('statLifetime').textContent = stats.total_scans;
+    document.getElementById('statRange').textContent    = stats.total_in_range;
+
+    // daily
+    var dailyEl = document.getElementById('statsDailyList');
+    if(stats.daily_scans && stats.daily_scans.length){
+        dailyEl.innerHTML = stats.daily_scans.map(function(d){
+            return '<div class="daily-row"><span>'+d.date+'</span><strong>'+d.count+' scans</strong></div>';
+        }).join('');
+    } else {
+        dailyEl.innerHTML = '<div class="no-data">No scans in this range</div>';
+    }
+
+    // logs
+    var logsEl = document.getElementById('statsLogsList');
+    if(stats.recent_logs && stats.recent_logs.length){
+        logsEl.innerHTML = stats.recent_logs.map(function(l){
+            return '<div class="log-row"><div class="log-time">'+new Date(l.scanned_at).toLocaleString()+'</div>' +
+                   '<div class="log-ip">'+(l.ip_address||'')+'</div></div>';
+        }).join('');
+    } else {
+        logsEl.innerHTML = '<div class="no-data">No scan logs in this range</div>';
+    }
+}
+
+/* ── INIT ── */
+(function(){
+    try { token = localStorage.getItem('nfc_token'); } catch(e){}
+    if(token) goToDashboard();
+})();
 
 })();
 </script>
