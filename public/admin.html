@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFC vCard Manager</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+    --ios-bg: #f2f2f7;
+    --ios-card: #ffffff;
+    --ios-border: rgba(60,60,67,0.12);
+    --ios-text: #000000;
+    --ios-text-secondary: #3c3c43;
+    --ios-text-tertiary: #8e8e93;
+    --ios-blue: #007AFF;
+    --ios-green: #34C759;
+    --ios-red: #FF3B30;
+    --ios-orange: #FF9500;
+    --ios-purple: #AF52DE;
+    --ios-gray: #8E8E93;
+    --ios-gray-light: #E5E5EA;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+    background: var(--ios-bg);
+    color: var(--ios-text);
+    font-size: 15px;
+    line-height: 1.47;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ═══ LOGIN ═══ */
+#loginPage {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background: linear-gradient(135deg, var(--ios-blue) 0%, var(--ios-purple) 100%);
+    padding: 20px;
+}
+#loginPage.hidden { display:none; }
+
+.login-box {
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    padding: 48px 40px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    width: 100%;
+    max-width: 400px;
+    border: 0.5px solid rgba(255,255,255,0.3);
+}
+.login-box h1 { 
+    text-align:center; 
+    color: var(--ios-text); 
+    margin-bottom: 32px; 
+    font-size: 28px; 
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+/* ═══ DASHBOARD ═══ */
+#dashboardPage { display:none; }
+#dashboardPage.visible { display:block; }
+
+.navbar {
+    background: rgba(255,255,255,0.8);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    padding: 16px 24px;
+    border-bottom: 0.5px solid var(--ios-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+.navbar h1 { 
+    color: var(--ios-text); 
+    font-size: 22px; 
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.2s;
+}
+.navbar h1:active { opacity: 0.6; }
+.navbar-right { display:flex; gap:12px; align-items:center; }
+#userEmail { 
+    color: var(--ios-text-secondary); 
+    font-size: 14px; 
+    font-weight: 500;
+}
+
+.container { 
+    max-width: 1100px; 
+    margin: 24px auto; 
+    padding: 0 24px;
+}
+
+/* ═══ STATS GRID ═══ */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: var(--ios-card);
+    padding: 20px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    border: 0.5px solid var(--ios-border);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.stat-card:active {
+    transform: scale(0.98);
+}
+.stat-card h3 { 
+    color: var(--ios-text-tertiary); 
+    font-size: 13px; 
+    font-weight: 600;
+    text-transform: uppercase; 
+    letter-spacing: 0.6px; 
+    margin-bottom: 8px;
+}
+.stat-card .value { 
+    font-size: 34px; 
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--ios-blue), var(--ios-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -1px;
+}
+
+/* ═══ SECTION ═══ */
+.section {
+    background: var(--ios-card);
+    padding: 24px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    border: 0.5px solid var(--ios-border);
+    margin-bottom: 24px;
+}
+.section-header { 
+    display:flex; 
+    justify-content:space-between; 
+    align-items:center; 
+    margin-bottom: 20px;
+}
+.section-header h2 { 
+    color: var(--ios-text); 
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+}
+
+/* ═══ BUTTONS ═══ */
+.btn {
+    background: var(--ios-blue);
+    color: #fff;
+    border: none;
+    padding: 11px 20px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    transition: opacity 0.2s, transform 0.2s;
+    box-shadow: 0 2px 8px rgba(0,122,255,0.25);
+}
+.btn:hover { opacity: 0.9; }
+.btn:active { transform: scale(0.96); }
+
+.btn-gray   { 
+    background: var(--ios-gray-light); 
+    color: var(--ios-text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.btn-danger { 
+    background: var(--ios-red); 
+    box-shadow: 0 2px 8px rgba(255,59,48,0.25);
+}
+.btn-sm  { padding: 8px 16px; font-size: 14px; }
+.btn-xs  { padding: 6px 12px; font-size: 13px; }
+
+/* ═══ TOGGLE ═══ */
+.toggle-wrap { 
+    display: inline-flex; 
+    align-items: center; 
+    gap: 8px;
+    padding: 4px 12px;
+    background: var(--ios-gray-light);
+    border-radius: 18px;
+    transition: background 0.25s;
+}
+.toggle-track {
+    width: 51px;
+    height: 31px;
+    border-radius: 16px;
+    background: var(--ios-gray-light);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+.toggle-track.on { 
+    background: var(--ios-green);
+    box-shadow: inset 0 1px 3px rgba(52,199,89,0.2);
+}
+.toggle-track .knob {
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    background: #fff;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    transition: left 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+.toggle-track.on .knob { left: 22px; }
+.toggle-label { 
+    font-size: 13px; 
+    font-weight: 600; 
+    min-width: 58px;
+    letter-spacing: -0.1px;
+}
+.toggle-label.active   { color: var(--ios-green); }
+.toggle-label.inactive { color: var(--ios-text-tertiary); }
+
+/* ═══ FORMS ═══ */
+.form-group { margin-bottom: 16px; }
+.form-group label { 
+    display: block; 
+    margin-bottom: 6px; 
+    color: var(--ios-text-secondary); 
+    font-weight: 600; 
+    font-size: 14px;
+    letter-spacing: -0.1px;
+}
+.form-group label .sort-hint { 
+    color: var(--ios-text-tertiary); 
+    font-weight: 400; 
+    font-size: 12px;
+}
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 12px 16px;
+    border: 0.5px solid var(--ios-border);
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    font-family: inherit;
+    background: var(--ios-card);
+    color: var(--ios-text);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus { 
+    outline: none; 
+    border-color: var(--ios-blue);
+    box-shadow: 0 0 0 3px rgba(0,122,255,0.1);
+}
+.form-group textarea { resize: vertical; min-height: 80px; }
+.form-group small { 
+    color: var(--ios-text-tertiary); 
+    font-size: 12px;
+    margin-top: 4px;
+    display: block;
+}
+
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+
+/* ═══ DYNAMIC SOCIAL FIELDS ═══ */
+.social-add-row { 
+    display: flex; 
+    gap: 8px; 
+    align-items: flex-end; 
+    margin-bottom: 8px;
+}
+.social-add-row .form-group { margin-bottom: 0; flex: 1; }
+
+.social-field-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: var(--ios-gray-light);
+    border: 0.5px solid var(--ios-border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    transition: background 0.2s;
+}
+.social-field-row:hover { background: #d8d8dd; }
+.social-field-row .sf-label {
+    min-width: 100px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ios-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.social-field-row input { 
+    flex: 1;
+    background: var(--ios-card);
+    border: 0.5px solid var(--ios-border);
+}
+.sf-remove {
+    background: none;
+    border: none;
+    color: var(--ios-red);
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+    transition: opacity 0.2s;
+}
+.sf-remove:hover { opacity: 0.7; }
+
+/* ═══ CARD ITEMS ═══ */
+.card-item {
+    border: 0.5px solid var(--ios-border);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    background: var(--ios-card);
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+.card-item:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.card-item-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-start; 
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.card-item-title h3 { 
+    color: var(--ios-text); 
+    margin-bottom: 4px;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+}
+.card-item-title p { 
+    color: var(--ios-text-secondary); 
+    font-size: 14px;
+    font-weight: 500;
+}
+.card-item-actions { 
+    display: flex; 
+    gap: 8px; 
+    align-items: center; 
+    flex-wrap: wrap;
+}
+
+.card-item-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 0.5px solid var(--ios-border);
+}
+.info-label { 
+    color: var(--ios-text-tertiary); 
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+.info-value { 
+    color: var(--ios-text-secondary); 
+    font-weight: 600;
+    font-size: 14px;
+}
+.info-value a { 
+    color: var(--ios-blue); 
+    text-decoration: none;
+    font-weight: 600;
+}
+.info-value a:hover { opacity: 0.8; }
+
+/* ═══ EMPTY STATE ═══ */
+.empty-state { 
+    text-align: center; 
+    padding: 64px 20px;
+}
+.empty-state h3 { 
+    color: var(--ios-text-secondary); 
+    margin-bottom: 8px;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+}
+.empty-state p { 
+    color: var(--ios-text-tertiary); 
+    font-size: 15px;
+}
+
+/* ═══ ALERTS ═══ */
+.alert { 
+    padding: 14px 18px; 
+    border-radius: var(--radius-sm); 
+    font-size: 14px; 
+    margin-bottom: 16px;
+    font-weight: 500;
+    border: 0.5px solid;
+}
+.alert-error { 
+    background: rgba(255,59,48,0.1); 
+    color: var(--ios-red);
+    border-color: rgba(255,59,48,0.2);
+}
+.alert-success { 
+    background: rgba(52,199,89,0.1); 
+    color: var(--ios-green);
+    border-color: rgba(52,199,89,0.2);
+}
+.alert.hidden { display: none; }
+
+/* ═══ MODAL ═══ */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease-out;
+}
+.modal-overlay.open { display: flex; }
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-box {
+    background: var(--ios-card);
+    padding: 32px;
+    border-radius: var(--radius-lg);
+    width: 90%;
+    max-width: 600px;
+    max-height: 88vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: var(--shadow-lg);
+    border: 0.5px solid var(--ios-border);
+    animation: slideUp 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+@keyframes slideUp {
+    from { 
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-box h2 { 
+    color: var(--ios-text); 
+    margin-bottom: 24px; 
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+}
+.modal-close {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    font-size: 28px;
+    cursor: pointer;
+    color: var(--ios-text-tertiary);
+    background: none;
+    border: none;
+    line-height: 1;
+    transition: opacity 0.2s;
+}
+.modal-close:hover { opacity: 0.6; }
+.modal-actions { display: flex; gap: 10px; margin-top: 12px; }
+
+/* ═══ STATS DATE CONTROLS ═══ */
+.stats-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 0.5px solid var(--ios-border);
+}
+.stats-controls label { 
+    font-size: 14px; 
+    color: var(--ios-text-secondary); 
+    font-weight: 600;
+}
+.stats-controls input[type=date] {
+    padding: 8px 12px;
+    border: 0.5px solid var(--ios-border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    background: var(--ios-card);
+    color: var(--ios-text);
+}
+.stats-controls input[type=date]:focus { 
+    outline: none; 
+    border-color: var(--ios-blue);
+    box-shadow: 0 0 0 3px rgba(0,122,255,0.1);
+}
+
+.preset-pills { display: flex; gap: 6px; margin-left: 8px; flex-wrap: wrap; }
+.pill {
+    padding: 6px 14px;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 0.5px solid var(--ios-border);
+    background: var(--ios-card);
+    cursor: pointer;
+    color: var(--ios-text-secondary);
+    transition: all 0.2s;
+    letter-spacing: -0.1px;
+}
+.pill:hover { 
+    background: var(--ios-gray-light);
+}
+.pill:active { 
+    transform: scale(0.95);
+}
+.pill.active-pill { 
+    background: var(--ios-blue); 
+    color: #fff;
+    border-color: var(--ios-blue);
+    box-shadow: 0 2px 6px rgba(0,122,255,0.25);
+}
+
+.stats-summary {
+    display: flex;
+    gap: 28px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+.stats-summary .s-item { text-align: center; }
+.stats-summary .s-num { 
+    font-size: 28px; 
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--ios-blue), var(--ios-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.8px;
+}
+.stats-summary .s-lbl { 
+    font-size: 11px; 
+    color: var(--ios-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-top: 4px;
+    font-weight: 600;
+}
+
+.daily-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 0.5px solid var(--ios-border);
+    font-size: 14px;
+}
+.daily-row:last-child { border-bottom: none; }
+.daily-row strong { 
+    color: var(--ios-blue); 
+    font-weight: 700;
+}
+
+.log-row {
+    padding: 10px 0;
+    border-bottom: 0.5px solid var(--ios-border);
+    font-size: 13px;
+}
+.log-row:last-child { border-bottom: none; }
+.log-row .log-time { 
+    font-weight: 600; 
+    color: var(--ios-text-secondary);
+}
+.log-row .log-ip { 
+    color: var(--ios-text-tertiary); 
+    margin-top: 3px;
+    font-size: 12px;
+}
+
+.no-data { 
+    color: var(--ios-text-tertiary); 
+    font-size: 14px; 
+    padding: 24px 0; 
+    text-align: center;
+}
+
+/* ═══ RESPONSIVE ═══ */
+@media (max-width: 680px) {
+    .form-row { grid-template-columns: 1fr; }
+    .card-item-header { flex-direction: column; }
+    .navbar { padding: 14px 20px; }
+    .navbar h1 { font-size: 20px; }
+    .stats-controls { flex-direction: column; align-items: flex-start; }
+    .container { padding: 0 20px; }
+    .preset-pills { margin-left: 0; width: 100%; }
+}
+
+/* ═══ SCROLLBAR ═══ */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--ios-bg); }
+::-webkit-scrollbar-thumb { 
+    background: var(--ios-gray-light); 
+    border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--ios-gray); }
+
+/* ═══ TAB NAVIGATION ═══ */
+.tab-nav {
+    display: flex;
+    gap: 8px;
+    padding: 0 24px 16px 24px;
+    border-bottom: 0.5px solid var(--ios-border);
+    background: var(--ios-card);
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    color: var(--ios-text-tertiary);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s;
+    position: relative;
+}
+
+.tab-btn:hover {
+    background: var(--ios-gray-light);
+    color: var(--ios-text);
+}
+
+.tab-btn.active {
+    color: var(--ios-blue);
+}
+
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -16px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--ios-blue);
+}
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ═══ HISTORY TABLE ═══ */
+.history-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.history-table th {
+    background: var(--ios-gray-light);
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ios-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 0.5px solid var(--ios-border);
+}
+
+.history-table th:first-child { border-radius: var(--radius-sm) 0 0 0; }
+.history-table th:last-child { border-radius: 0 var(--radius-sm) 0 0; }
+
+.history-table td {
+    padding: 14px 16px;
+    border-bottom: 0.5px solid var(--ios-border);
+    font-size: 14px;
+    color: var(--ios-text-secondary);
+}
+
+.history-table tr:last-child td { border-bottom: none; }
+.history-table tr:hover { background: var(--ios-gray-light); }
+
+.action-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.action-created { background: rgba(52,199,89,0.15); color: var(--ios-green); }
+.action-updated { background: rgba(10,132,255,0.15); color: var(--ios-blue); }
+.action-deleted { background: rgba(255,59,48,0.15); color: var(--ios-red); }
+.action-activated { background: rgba(52,199,89,0.15); color: var(--ios-green); }
+.action-deactivated { background: rgba(255,159,10,0.15); color: var(--ios-orange); }
+
+/* ═══ SUMMARY GRID ═══ */
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px,1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.summary-card {
+    background: var(--ios-card);
+    padding: 24px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    border: 0.5px solid var(--ios-border);
+}
+
+.summary-label {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--ios-text-tertiary);
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.summary-value {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--ios-blue);
+    letter-spacing: -1px;
+    margin-bottom: 4px;
+}
+
+.summary-sub {
+    font-size: 13px;
+    color: var(--ios-text-tertiary);
+    font-weight: 500;
+}
+
+.summary-value.green { color: var(--ios-green); }
+.summary-value.orange { color: var(--ios-orange); }
+.summary-value.purple { background: linear-gradient(135deg, var(--ios-blue), var(--ios-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="loginPage">
+  <div class="login-box">
+    <h1>🔐 Sign In</h1>
+    <div id="loginError" class="alert alert-error hidden"></div>
+    <form id="loginForm">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" autocomplete="off" required>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" required>
+      </div>
+      <button type="submit" class="btn" style="width:100%;padding:13px;">Sign In</button>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ DASHBOARD ═══ -->
+<div id="dashboardPage">
+  <nav class="navbar">
+    <h1 id="brandTitle">📇 vCard Manager</h1>
+    <div class="navbar-right">
+      <span id="userEmail"></span>
+      <button id="logoutBtn" class="btn btn-gray btn-sm">Sign Out</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- Tab Navigation -->
+    <div class="section" style="padding:0; margin-bottom:0; border-radius: var(--radius-md) var(--radius-md) 0 0;">
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="cards">📇 My Cards</button>
+        <button class="tab-btn" data-tab="summary">📊 Summary</button>
+        <button class="tab-btn" data-tab="history">📜 History</button>
+      </div>
+    </div>
+
+    <!-- Cards Tab -->
+    <div id="tab-cards" class="tab-content active">
+      <div class="stats-grid">
+        <div class="stat-card"><h3>Total Cards</h3><div class="value" id="statTotal">0</div></div>
+        <div class="stat-card"><h3>Active Cards</h3><div class="value" id="statActive">0</div></div>
+        <div class="stat-card"><h3>Total Scans</h3><div class="value" id="statScans">0</div></div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2>My Cards</h2>
+          <button id="createBtn" class="btn">Create Card</button>
+        </div>
+        <div id="successAlert" class="alert alert-success hidden"></div>
+        <div id="cardsContainer">
+          <div class="empty-state"><h3>No Cards Yet</h3><p>Create your first vCard to get started</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Tab -->
+    <div id="tab-summary" class="tab-content">
+      <div class="summary-grid" style="margin-top:24px;">
+        <div class="summary-card">
+          <div class="summary-label">Total Cards</div>
+          <div class="summary-value purple" id="summaryTotalCards">0</div>
+          <div class="summary-sub"><span id="summaryActiveCards">0</span> active · <span id="summaryInactiveCards">0</span> inactive</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">All-Time Scans</div>
+          <div class="summary-value" id="summaryTotalScans">0</div>
+          <div class="summary-sub">Total across all cards</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Scans Today</div>
+          <div class="summary-value green" id="summaryScansToday">0</div>
+          <div class="summary-sub" id="summaryScansWeek">0 this week</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">This Month</div>
+          <div class="summary-value orange" id="summaryScansMonth">0</div>
+          <div class="summary-sub">Scans in current month</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2>Top Performing Card</h2>
+        </div>
+        <div id="topCardContainer">
+          <div class="empty-state" style="padding:40px 20px;"><p>No scan data yet</p></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2>Recent Activity (Last 7 Days)</h2>
+        </div>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="summary-label">Cards Created</div>
+            <div class="summary-value green" id="summaryRecentCreated">0</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Cards Deleted</div>
+            <div class="summary-value" style="color:var(--ios-red);" id="summaryRecentDeleted">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- History Tab -->
+    <div id="tab-history" class="tab-content">
+      <div class="section" style="margin-top:24px;">
+        <div class="section-header">
+          <h2>Card History</h2>
+          <button id="refreshHistoryBtn" class="btn btn-sm">🔄 Refresh</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                <th>Card Name</th>
+                <th>Action</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <tr>
+                <td colspan="4" style="text-align:center; padding:40px; color:var(--ios-text-tertiary);">
+                  Loading history...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CREATE / EDIT MODAL ═══ -->
+<div id="cardModal" class="modal-overlay">
+  <div class="modal-box">
+    <button class="modal-close" id="cardModalClose">&times;</button>
+    <h2 id="modalTitle">Create vCard</h2>
+
+    <form id="cardForm">
+      <input type="hidden" id="editingId" value="">
+
+      <div class="form-group">
+        <label>Card ID</label>
+        <input type="text" id="cardIdInput" placeholder="john-smith" required>
+        <small>Used in the card URL. Letters, numbers, hyphens, underscores only.</small>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Full Name <span class="sort-hint">[First Last]</span></label>
+          <input type="text" id="cardName" placeholder="John Smith" required>
+        </div>
+        <div class="form-group">
+          <label>Job Title</label>
+          <input type="text" id="cardTitle" placeholder="Software Engineer">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="cardEmail" required>
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="tel" id="cardPhone" placeholder="+1 555 123 4567">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Website</label>
+          <input type="url" id="cardWebsite" placeholder="https://example.com">
+        </div>
+        <div class="form-group">
+          <label>Company</label>
+          <input type="text" id="cardCompany">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Address</label>
+        <textarea id="cardAddress" placeholder="123 Main Street, City, Country"></textarea>
+      </div>
+
+      <!-- Dynamic social fields -->
+      <div style="margin-top:8px;">
+        <label style="display:block; margin-bottom:10px;">Social &amp; Links</label>
+        <div id="socialFieldsList"></div>
+        <div class="social-add-row">
+          <div class="form-group">
+            <select id="socialTypeSelect"></select>
+          </div>
+          <button type="button" id="socialAddBtn" class="btn btn-sm">Add</button>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="submit" class="btn">Save Card</button>
+        <button type="button" class="btn btn-gray" id="cardCancelBtn">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ STATS MODAL ═══ -->
+<div id="statsModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:620px;">
+    <button class="modal-close" id="statsModalClose">&times;</button>
+    <h2>📊 Statistics</h2>
+
+    <div class="stats-controls">
+      <label>From</label>
+      <input type="date" id="statsFrom">
+      <label>To</label>
+      <input type="date" id="statsTo">
+      <div class="preset-pills">
+        <button class="pill" data-days="1">Today</button>
+        <button class="pill" data-days="7">7 Days</button>
+        <button class="pill active-pill" data-days="30">30 Days</button>
+        <button class="pill" data-days="90">90 Days</button>
+        <button class="pill" data-days="0">All Time</button>
+      </div>
+    </div>
+
+    <div class="stats-summary">
+      <div class="s-item"><div class="s-num" id="statLifetime">0</div><div class="s-lbl">Lifetime</div></div>
+      <div class="s-item"><div class="s-num" id="statRange">0</div><div class="s-lbl">In Range</div></div>
+    </div>
+
+    <h3 style="font-size:16px; color:var(--ios-text-secondary); margin-bottom:12px; font-weight:700; letter-spacing:-0.2px;">Daily Scans</h3>
+    <div id="statsDailyList" style="max-height:220px; overflow-y:auto; margin-bottom:24px;"></div>
+
+    <h3 style="font-size:16px; color:var(--ios-text-secondary); margin-bottom:12px; font-weight:700; letter-spacing:-0.2px;">Recent Logs</h3>
+    <div id="statsLogsList" style="max-height:220px; overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- ═══ SCRIPT (same JS logic, unchanged) ═══ -->
+<script>
+(function(){
+'use strict';
+
+var FIELD_DEFS = [
+  { key:'linkedin',   label:'LinkedIn',   icon:'in', placeholder:'https://linkedin.com/in/…' },
+  { key:'twitter',    label:'Twitter / X', icon:'𝕏',  placeholder:'https://twitter.com/…' },
+  { key:'instagram',  label:'Instagram',  icon:'📷', placeholder:'https://instagram.com/…' },
+  { key:'facebook',   label:'Facebook',   icon:'f',  placeholder:'https://facebook.com/…' },
+  { key:'github',     label:'GitHub',     icon:'⌐',  placeholder:'https://github.com/…' },
+  { key:'tiktok',     label:'TikTok',     icon:'♪',  placeholder:'https://tiktok.com/@…' },
+  { key:'youtube',    label:'YouTube',    icon:'▶',  placeholder:'https://youtube.com/@…' },
+  { key:'portfolio',  label:'Portfolio',  icon:'🗂', placeholder:'https://portfolio.com/…' }
+];
+
+var token = null;
+var cards = [];
+var currentSocialFields = [];
+var statsCurrentId = null;
+
+var loginPage      = document.getElementById('loginPage');
+var dashPage       = document.getElementById('dashboardPage');
+var loginError     = document.getElementById('loginError');
+var logoutBtn      = document.getElementById('logoutBtn');
+var brandTitle     = document.getElementById('brandTitle');
+var userEmailEl    = document.getElementById('userEmail');
+var createBtn      = document.getElementById('createBtn');
+var cardsContainer = document.getElementById('cardsContainer');
+var successAlert   = document.getElementById('successAlert');
+
+var cardModal      = document.getElementById('cardModal');
+var cardForm       = document.getElementById('cardForm');
+var modalTitle     = document.getElementById('modalTitle');
+var editingId      = document.getElementById('editingId');
+var socialList     = document.getElementById('socialFieldsList');
+var socialSelect   = document.getElementById('socialTypeSelect');
+var socialAddBtn   = document.getElementById('socialAddBtn');
+
+var statsModal     = document.getElementById('statsModal');
+var statsFrom      = document.getElementById('statsFrom');
+var statsTo        = document.getElementById('statsTo');
+
+function apiUrl(p){ return window.location.origin + '/api' + p; }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function flashSuccess(msg){
+    successAlert.textContent = msg;
+    successAlert.classList.remove('hidden');
+    setTimeout(function(){ successAlert.classList.add('hidden'); }, 3000);
+}
+function openModal(el)  { el.classList.add('open'); }
+function closeModal(el) { el.classList.remove('open'); }
+
+function toISODate(d){ return d.toISOString().slice(0,10); }
+function today(){ return toISODate(new Date()); }
+function daysAgo(n){ return toISODate(new Date(Date.now() - n*86400000)); }
+
+(function buildSelect(){
+    FIELD_DEFS.forEach(function(f){
+        var o = document.createElement('option');
+        o.value = f.key;
+        o.textContent = f.label;
+        socialSelect.appendChild(o);
+    });
+})();
+
+function goToDashboard(){
+    loginPage.classList.add('hidden');
+    dashPage.classList.add('visible');
+    loadCards();
+}
+function goToLogin(){
+    token = null;
+    try { localStorage.removeItem('nfc_token'); } catch(e){}
+    loginPage.classList.remove('hidden');
+    dashPage.classList.remove('visible');
+}
+
+document.getElementById('loginForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    loginError.classList.add('hidden');
+    var email    = document.getElementById('loginEmail').value.trim();
+    var password = document.getElementById('loginPassword').value;
+
+    fetch(apiUrl('/auth/login'), {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({email:email, password:password})
+    })
+    .then(function(r){ return r.json().then(function(d){ return {ok:r.ok, data:d}; }); })
+    .then(function(r){
+        if(r.ok){
+            token = r.data.token;
+            try { localStorage.setItem('nfc_token', token); } catch(e){}
+            userEmailEl.textContent = r.data.user.email;
+            goToDashboard();
+        } else {
+            loginError.textContent = r.data.error || 'Login failed';
+            loginError.classList.remove('hidden');
+        }
+    })
+    .catch(function(){ loginError.textContent='Connection error.'; loginError.classList.remove('hidden'); });
+});
+
+logoutBtn.addEventListener('click', goToLogin);
+brandTitle.addEventListener('click', function(){ window.location.reload(); });
+
+function loadCards(){
+    fetch(apiUrl('/vcards'), { headers:{'Authorization':'Bearer '+token} })
+    .then(function(r){ if(r.status===401){goToLogin();return null;} return r.json(); })
+    .then(function(data){
+        if(!data) return;
+        cards = data;
+        renderCards();
+        renderTopStats();
+    })
+    .catch(function(e){ console.error('loadCards',e); });
+}
+
+function renderCards(){
+    if(!cards.length){
+        cardsContainer.innerHTML = '<div class="empty-state"><h3>No Cards Yet</h3><p>Create your first vCard to get started</p></div>';
+        return;
+    }
+    cardsContainer.innerHTML = cards.map(function(c){
+        var activeClass = c.is_active ? 'on' : '';
+        var labelClass  = c.is_active ? 'active' : 'inactive';
+        var labelText   = c.is_active ? 'Active' : 'Inactive';
+
+        return '<div class="card-item">' +
+          '<div class="card-item-header">' +
+            '<div class="card-item-title">' +
+              '<h3>' + esc(c.name) + '</h3>' +
+              '<p>' + esc(c.title || 'No title') + '</p>' +
+            '</div>' +
+            '<div class="card-item-actions">' +
+              '<div class="toggle-wrap" data-action="toggle" data-id="'+c.id+'">' +
+                '<div class="toggle-track '+activeClass+'"><div class="knob"></div></div>' +
+                '<span class="toggle-label '+labelClass+'">'+labelText+'</span>' +
+              '</div>' +
+              '<button class="btn btn-sm" data-action="stats"  data-id="'+c.id+'">📊</button>' +
+              '<button class="btn btn-sm" data-action="edit"   data-id="'+c.id+'">✏️</button>' +
+              '<button class="btn btn-danger btn-sm" data-action="delete" data-id="'+c.id+'" data-name="'+esc(c.name)+'">🗑️</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="card-item-info">' +
+            infoRow('Card ID', esc(c.card_id)) +
+            infoRow('Email',   esc(c.email)) +
+            infoRow('Phone',   esc(c.phone||'—')) +
+            infoRow('Scans',   c.scan_count) +
+            infoRow('Public URL','<a href="'+window.location.origin+'/card/'+esc(c.card_id)+'" target="_blank">View Card →</a>') +
+          '</div>' +
+        '</div>';
+    }).join('');
+}
+
+function infoRow(label,val){
+    return '<div class="info-item"><div class="info-label">'+label+'</div><div class="info-value">'+val+'</div></div>';
+}
+
+function renderTopStats(){
+    document.getElementById('statTotal').textContent  = cards.length;
+    document.getElementById('statActive').textContent = cards.filter(function(c){return c.is_active;}).length;
+    document.getElementById('statScans').textContent  = cards.reduce(function(s,c){return s+c.scan_count;},0);
+}
+
+cardsContainer.addEventListener('click', function(e){
+    var tw = e.target.closest('.toggle-wrap[data-action="toggle"]');
+    if(tw){ toggleActive(parseInt(tw.getAttribute('data-id'),10)); return; }
+
+    var btn = e.target.closest('[data-action]');
+    if(!btn) return;
+    var action = btn.getAttribute('data-action');
+    var id     = parseInt(btn.getAttribute('data-id'),10);
+
+    if(action==='edit')   openEditModal(id);
+    if(action==='stats')  openStatsModal(id);
+    if(action==='delete') deleteCard(id, btn.getAttribute('data-name'));
+});
+
+function toggleActive(id){
+    var card = cards.find(function(c){ return c.id===id; });
+    if(!card) return;
+    var newVal = card.is_active ? 0 : 1;
+
+    fetch(apiUrl('/vcards/'+id), {
+        method:'PUT',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body: JSON.stringify({ is_active: newVal })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(){
+        card.is_active = newVal;
+        renderCards();
+        renderTopStats();
+        flashSuccess(newVal ? 'Card activated!' : 'Card deactivated!');
+    })
+    .catch(function(){ alert('Connection error.'); });
+}
+
+createBtn.addEventListener('click', function(){
+    modalTitle.textContent = 'Create vCard';
+    cardForm.reset();
+    editingId.value = '';
+    document.getElementById('cardIdInput').readOnly = false;
+    currentSocialFields = [];
+    renderSocialFields();
+    openModal(cardModal);
+});
+
+document.getElementById('cardModalClose').addEventListener('click', function(){ closeModal(cardModal); });
+document.getElementById('cardCancelBtn').addEventListener('click',  function(){ closeModal(cardModal); });
+
+function openEditModal(id){
+    var c = cards.find(function(x){ return x.id===id; });
+    if(!c) return;
+
+    modalTitle.textContent = 'Edit vCard';
+    editingId.value = c.id;
+
+    document.getElementById('cardIdInput').value    = c.card_id;
+    document.getElementById('cardIdInput').readOnly = true;
+    document.getElementById('cardName').value       = c.name      || '';
+    document.getElementById('cardTitle').value      = c.title     || '';
+    document.getElementById('cardEmail').value      = c.email     || '';
+    document.getElementById('cardPhone').value      = c.phone     || '';
+    document.getElementById('cardWebsite').value    = c.website   || '';
+    document.getElementById('cardCompany').value    = c.company   || '';
+    document.getElementById('cardAddress').value    = c.address   || '';
+
+    var ef = c.extra_fields || {};
+    currentSocialFields = [];
+    FIELD_DEFS.forEach(function(def){
+        if(ef[def.key]) currentSocialFields.push({key:def.key, value:ef[def.key]});
+    });
+    renderSocialFields();
+
+    openModal(cardModal);
+}
+
+function renderSocialFields(){
+    socialList.innerHTML = '';
+    currentSocialFields.forEach(function(sf, idx){
+        var def = FIELD_DEFS.find(function(d){ return d.key===sf.key; }) || {label:sf.key, icon:'🔗', placeholder:''};
+        var row = document.createElement('div');
+        row.className = 'social-field-row';
+        row.innerHTML =
+            '<span class="sf-label">'+def.icon+' '+esc(def.label)+'</span>' +
+            '<input type="url" class="sf-input" placeholder="'+esc(def.placeholder)+'" value="'+esc(sf.value)+'" data-idx="'+idx+'">' +
+            '<button type="button" class="sf-remove" data-idx="'+idx+'">&times;</button>';
+        socialList.appendChild(row);
+    });
+
+    socialList.querySelectorAll('.sf-input').forEach(function(inp){
+        inp.addEventListener('input', function(){
+            currentSocialFields[parseInt(this.getAttribute('data-idx'),10)].value = this.value;
+        });
+    });
+    socialList.querySelectorAll('.sf-remove').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            currentSocialFields.splice(parseInt(this.getAttribute('data-idx'),10), 1);
+            renderSocialFields();
+        });
+    });
+
+    var addedKeys = currentSocialFields.map(function(s){ return s.key; });
+    Array.from(socialSelect.options).forEach(function(o){
+        o.disabled = addedKeys.indexOf(o.value) !== -1;
+    });
+    var firstEnabled = Array.from(socialSelect.options).find(function(o){ return !o.disabled; });
+    if(firstEnabled) socialSelect.value = firstEnabled.value;
+}
+
+socialAddBtn.addEventListener('click', function(){
+    var key = socialSelect.value;
+    if(!key) return;
+    if(currentSocialFields.find(function(s){ return s.key===key; })) return;
+    currentSocialFields.push({key:key, value:''});
+    renderSocialFields();
+});
+
+cardForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    var id = editingId.value;
+
+    var ef = {};
+    currentSocialFields.forEach(function(sf){ if(sf.value.trim()) ef[sf.key] = sf.value.trim(); });
+
+    var payload = {
+        card_id   : document.getElementById('cardIdInput').value.trim(),
+        name      : document.getElementById('cardName').value.trim(),
+        title     : document.getElementById('cardTitle').value.trim(),
+        email     : document.getElementById('cardEmail').value.trim(),
+        phone     : document.getElementById('cardPhone').value.trim(),
+        website   : document.getElementById('cardWebsite').value.trim(),
+        company   : document.getElementById('cardCompany').value.trim(),
+        address   : document.getElementById('cardAddress').value.trim(),
+        extra_fields : ef,
+        is_active : 1
+    };
+
+    var url    = id ? apiUrl('/vcards/'+id) : apiUrl('/vcards');
+    var method = id ? 'PUT' : 'POST';
+
+    fetch(url, {
+        method:method,
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body: JSON.stringify(payload)
+    })
+    .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,data:d}; }); })
+    .then(function(r){
+        if(r.ok){
+            closeModal(cardModal);
+            flashSuccess(id ? 'Card updated!' : 'Card created!');
+            loadCards();
+        } else {
+            alert('Error: '+(r.data.error||'Something went wrong'));
+        }
+    })
+    .catch(function(){ alert('Connection error.'); });
+});
+
+function deleteCard(id, name){
+    if(!confirm('Delete "'+name+'"?')) return;
+    fetch(apiUrl('/vcards/'+id), { method:'DELETE', headers:{'Authorization':'Bearer '+token} })
+    .then(function(r){ if(r.ok){ flashSuccess('Card deleted!'); loadCards(); } })
+    .catch(function(){ alert('Connection error.'); });
+}
+
+document.querySelectorAll('.pill').forEach(function(pill){
+    pill.addEventListener('click', function(){
+        document.querySelectorAll('.pill').forEach(function(p){ p.classList.remove('active-pill'); });
+        this.classList.add('active-pill');
+
+        var days = parseInt(this.getAttribute('data-days'),10);
+        if(days === 0){
+            statsFrom.value = '2020-01-01';
+            statsTo.value   = today();
+        } else {
+            statsFrom.value = daysAgo(days - 1);
+            statsTo.value   = today();
+        }
+        fetchStats();
+    });
+});
+
+statsFrom.addEventListener('change', function(){ clearActivePill(); fetchStats(); });
+statsTo.addEventListener('change',   function(){ clearActivePill(); fetchStats(); });
+
+function clearActivePill(){
+    document.querySelectorAll('.pill').forEach(function(p){ p.classList.remove('active-pill'); });
+}
+
+function openStatsModal(id){
+    statsCurrentId = id;
+    document.querySelectorAll('.pill').forEach(function(p){ p.classList.remove('active-pill'); });
+    document.querySelector('.pill[data-days="30"]').classList.add('active-pill');
+    statsFrom.value = daysAgo(29);
+    statsTo.value   = today();
+
+    openModal(statsModal);
+    fetchStats();
+}
+document.getElementById('statsModalClose').addEventListener('click', function(){ closeModal(statsModal); });
+
+function fetchStats(){
+    if(statsCurrentId === null) return;
+    var from = statsFrom.value;
+    var to   = statsTo.value;
+
+    fetch(apiUrl('/vcards/'+statsCurrentId+'/stats?from='+from+'&to='+to), {
+        headers:{'Authorization':'Bearer '+token}
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(stats){ renderStats(stats); })
+    .catch(function(){ alert('Could not load stats.'); });
+}
+
+function renderStats(stats){
+    document.getElementById('statLifetime').textContent = stats.total_scans;
+    document.getElementById('statRange').textContent    = stats.total_in_range;
+
+    var dailyEl = document.getElementById('statsDailyList');
+    if(stats.daily_scans && stats.daily_scans.length){
+        dailyEl.innerHTML = stats.daily_scans.map(function(d){
+            return '<div class="daily-row"><span>'+d.date+'</span><strong>'+d.count+' scans</strong></div>';
+        }).join('');
+    } else {
+        dailyEl.innerHTML = '<div class="no-data">No scans in this range</div>';
+    }
+
+    var logsEl = document.getElementById('statsLogsList');
+    if(stats.recent_logs && stats.recent_logs.length){
+        logsEl.innerHTML = stats.recent_logs.map(function(l){
+            return '<div class="log-row"><div class="log-time">'+new Date(l.scanned_at).toLocaleString()+'</div>' +
+                   '<div class="log-ip">'+(l.ip_address||'')+'</div></div>';
+        }).join('');
+    } else {
+        logsEl.innerHTML = '<div class="no-data">No scan logs in this range</div>';
+    }
+}
+
+/* ── TAB SWITCHING ── */
+document.querySelectorAll('.tab-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+        var tab = this.getAttribute('data-tab');
+        
+        document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+        this.classList.add('active');
+        
+        document.querySelectorAll('.tab-content').forEach(function(c){ c.classList.remove('active'); });
+        document.getElementById('tab-'+tab).classList.add('active');
+        
+        if(tab === 'history') loadHistory();
+        if(tab === 'summary') loadSummary();
+    });
+});
+
+/* ── HISTORY ── */
+function loadHistory(){
+    fetch(apiUrl('/history?limit=100'), {
+        headers:{'Authorization':'Bearer '+token}
+    })
+    .then(function(r){ if(r.status===401){goToLogin();return null;} return r.json(); })
+    .then(function(data){
+        if(!data) return;
+        renderHistory(data);
+    })
+    .catch(function(e){ console.error('loadHistory',e); });
+}
+
+function renderHistory(history){
+    var tbody = document.getElementById('historyTableBody');
+    
+    if(!history || history.length === 0){
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:40px; color:var(--ios-text-tertiary);">No history yet</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = history.map(function(h){
+        var date = new Date(h.created_at);
+        var actionClass = 'action-' + h.action;
+        
+        return '<tr>' +
+            '<td>' + date.toLocaleString() + '</td>' +
+            '<td><strong>' + esc(h.card_name) + '</strong><br><small style="color:var(--ios-text-tertiary);">' + esc(h.card_id) + '</small></td>' +
+            '<td><span class="action-badge ' + actionClass + '">' + h.action.charAt(0).toUpperCase() + h.action.slice(1) + '</span></td>' +
+            '<td>' + esc(h.details || '') + '</td>' +
+        '</tr>';
+    }).join('');
+}
+
+document.getElementById('refreshHistoryBtn').addEventListener('click', loadHistory);
+
+/* ── SUMMARY STATISTICS ── */
+function loadSummary(){
+    fetch(apiUrl('/summary'), {
+        headers:{'Authorization':'Bearer '+token}
+    })
+    .then(function(r){ if(r.status===401){goToLogin();return null;} return r.json(); })
+    .then(function(data){
+        if(!data) return;
+        renderSummary(data);
+    })
+    .catch(function(e){ console.error('loadSummary',e); });
+}
+
+function renderSummary(data){
+    document.getElementById('summaryTotalCards').textContent = data.totalCards;
+    document.getElementById('summaryActiveCards').textContent = data.activeCards;
+    document.getElementById('summaryInactiveCards').textContent = data.inactiveCards;
+    document.getElementById('summaryTotalScans').textContent = data.totalScans;
+    document.getElementById('summaryScansToday').textContent = data.scansToday;
+    document.getElementById('summaryScansWeek').textContent = data.scansThisWeek + ' this week';
+    document.getElementById('summaryScansMonth').textContent = data.scansThisMonth;
+    document.getElementById('summaryRecentCreated').textContent = data.recentActivity.created;
+    document.getElementById('summaryRecentDeleted').textContent = data.recentActivity.deleted;
+    
+    var topContainer = document.getElementById('topCardContainer');
+    if(data.topCard && data.topCard.scan_count > 0){
+        topContainer.innerHTML = 
+            '<div class="card-item">' +
+                '<div class="card-item-header">' +
+                    '<div class="card-item-title">' +
+                        '<h3>' + esc(data.topCard.name) + '</h3>' +
+                        '<p>' + esc(data.topCard.card_id) + '</p>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="card-item-info">' +
+                    '<div class="info-item"><div class="info-label">Total Scans</div><div class="info-value"><strong style="font-size:24px; color:var(--ios-blue);">' + data.topCard.scan_count + '</strong></div></div>' +
+                '</div>' +
+            '</div>';
+    } else {
+        topContainer.innerHTML = '<div class="empty-state" style="padding:40px 20px;"><p>No scan data yet</p></div>';
+    }
+}
+
+(function(){
+    try { token = localStorage.getItem('nfc_token'); } catch(e){}
+    if(token) goToDashboard();
+})();
+
+})();
+</script>
+</body>
+</html>

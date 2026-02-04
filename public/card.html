@@ -395,13 +395,9 @@
             <p class="profile-title" id="title"></p>
 
             <div class="quick-actions">
-                <button class="quick-btn btn-primary" onclick="downloadVCard()">
+                <button class="quick-btn btn-primary" id="saveBtn" style="width:100%;">
                     <span>💾</span>
-                    <span>Save</span>
-                </button>
-                <button class="quick-btn btn-secondary" id="shareBtn" onclick="shareContact()">
-                    <span>↗</span>
-                    <span>Share</span>
+                    <span>Save Contact</span>
                 </button>
             </div>
         </div>
@@ -418,9 +414,6 @@
 </div>
 
 <script>
-(function(){
-'use strict';
-
 const API_URL = window.location.origin + '/api';
 let cardData = null;
 
@@ -465,6 +458,9 @@ function displayCard() {
 
     renderContactInfo();
     renderSocialLinks();
+    
+    // Attach save button listener
+    document.getElementById('saveBtn').addEventListener('click', downloadVCard);
 }
 
 function renderContactInfo() {
@@ -562,38 +558,7 @@ function downloadVCard() {
     window.URL.revokeObjectURL(url);
 }
 
-async function shareContact() {
-    if (!cardData) return;
-
-    const text = `${cardData.name}${cardData.title ? ' - ' + cardData.title : ''}\n${window.location.href}`;
-
-    if (navigator.share) {
-        try {
-            await navigator.share({ 
-                title: cardData.name,
-                text: text,
-                url: window.location.href
-            });
-        } catch(e) {
-            if (e.name !== 'AbortError') copyToClipboard();
-        }
-    } else {
-        copyToClipboard();
-    }
-}
-
-function copyToClipboard() {
-    const url = window.location.href;
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(url).then(() => {
-            alert('Link copied to clipboard!');
-        });
-    }
-}
-
 loadCard();
-
-})();
 </script>
 </body>
 </html>
