@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Digital Contact</title>
+    <style>
+        :root {
+            --ios-bg: #000000;
+            --ios-card: #1c1c1e;
+            --ios-card-light: #2c2c2e;
+            --ios-border: rgba(255,255,255,0.1);
+            --ios-text: #ffffff;
+            --ios-text-secondary: #ebebf5;
+            --ios-text-tertiary: #aeaeb2;
+            --ios-blue: #0a84ff;
+            --ios-green: #30d158;
+            --ios-cyan: #64d2ff;
+            --ios-orange: #ff9f0a;
+            --ios-pink: #ff375f;
+            --ios-purple: #bf5af2;
+            --ios-indigo: #5e5ce6;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+            --shadow-md: 0 8px 24px rgba(0,0,0,0.4);
+            --shadow-lg: 0 16px 48px rgba(0,0,0,0.5);
+        }
+
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
+            background: var(--ios-bg);
+            color: var(--ios-text);
+            min-height: 100vh;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow-x: hidden;
+        }
+
+        /* ═══ DYNAMIC ISLAND HEADER ═══ */
+        .island-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 120px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 100;
+            display: flex;
+            align-items: flex-end;
+            padding: 0 24px 16px 24px;
+        }
+
+        .island-header h1 {
+            font-size: 17px;
+            font-weight: 600;
+            letter-spacing: -0.4px;
+            color: var(--ios-text);
+            opacity: 0.9;
+        }
+
+        /* ═══ MAIN CONTENT ═══ */
+        .container {
+            flex: 1;
+            padding: 140px 20px 40px 20px;
+            max-width: 480px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* ═══ PROFILE CARD ═══ */
+        .profile-card {
+            background: var(--ios-card);
+            border-radius: 24px;
+            padding: 32px 24px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-md);
+            border: 0.5px solid var(--ios-border);
+            text-align: center;
+            animation: slideUp 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+
+        @keyframes slideUp {
+            from { 
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--ios-blue) 0%, var(--ios-purple) 100%);
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -1px;
+            box-shadow: 0 4px 16px rgba(10,132,255,0.4);
+        }
+
+        .profile-name {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.8px;
+            color: var(--ios-text);
+            margin-bottom: 4px;
+        }
+
+        .profile-title {
+            font-size: 15px;
+            color: var(--ios-text-tertiary);
+            font-weight: 500;
+            letter-spacing: -0.2px;
+            margin-bottom: 20px;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .quick-btn {
+            flex: 1;
+            max-width: 140px;
+            padding: 12px 20px;
+            border-radius: 14px;
+            border: none;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .quick-btn:active { transform: scale(0.95); }
+
+        .btn-primary {
+            background: var(--ios-blue);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(10,132,255,0.3);
+        }
+
+        .btn-secondary {
+            background: var(--ios-card-light);
+            color: var(--ios-text);
+            border: 0.5px solid var(--ios-border);
+        }
+
+        /* ═══ INFO CARDS ═══ */
+        .info-section {
+            background: var(--ios-card);
+            border-radius: 20px;
+            padding: 4px 0;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-sm);
+            border: 0.5px solid var(--ios-border);
+            overflow: hidden;
+        }
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            padding: 14px 20px;
+            border-bottom: 0.5px solid var(--ios-border);
+            transition: background 0.2s;
+        }
+
+        .info-row:last-child { border-bottom: none; }
+        .info-row:active { background: var(--ios-card-light); }
+
+        .info-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-right: 14px;
+            flex-shrink: 0;
+        }
+
+        .icon-blue   { background: rgba(10,132,255,0.15); }
+        .icon-green  { background: rgba(48,209,88,0.15); }
+        .icon-orange { background: rgba(255,159,10,0.15); }
+        .icon-purple { background: rgba(191,90,242,0.15); }
+        .icon-pink   { background: rgba(255,55,95,0.15); }
+        .icon-cyan   { background: rgba(100,210,255,0.15); }
+
+        .info-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .info-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--ios-text-tertiary);
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .info-value {
+            font-size: 15px;
+            color: var(--ios-text);
+            font-weight: 500;
+            letter-spacing: -0.2px;
+            word-break: break-word;
+        }
+
+        .info-value a {
+            color: var(--ios-blue);
+            text-decoration: none;
+        }
+
+        .info-value a:active { opacity: 0.6; }
+
+        /* ═══ SOCIAL SECTION ═══ */
+        .social-section {
+            background: var(--ios-card);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-sm);
+            border: 0.5px solid var(--ios-border);
+        }
+
+        .social-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--ios-text-tertiary);
+            font-weight: 600;
+            margin-bottom: 14px;
+            text-align: center;
+        }
+
+        .social-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+            gap: 12px;
+        }
+
+        .social-btn {
+            aspect-ratio: 1;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-decoration: none;
+            transition: transform 0.2s, opacity 0.2s;
+            padding: 12px;
+            border: 0.5px solid var(--ios-border);
+        }
+
+        .social-btn:active { 
+            transform: scale(0.92);
+            opacity: 0.7;
+        }
+
+        .social-icon {
+            font-size: 24px;
+        }
+
+        .social-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--ios-text-secondary);
+            letter-spacing: -0.1px;
+        }
+
+        /* ═══ LOADING & ERROR ═══ */
+        .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            gap: 20px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        .loading-icon {
+            font-size: 64px;
+        }
+
+        .loading-text {
+            font-size: 17px;
+            color: var(--ios-text-secondary);
+            font-weight: 500;
+        }
+
+        .error-state {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .error-icon {
+            font-size: 72px;
+            margin-bottom: 20px;
+        }
+
+        .error-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--ios-text);
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .error-message {
+            font-size: 15px;
+            color: var(--ios-text-tertiary);
+            line-height: 1.5;
+        }
+
+        .hidden { display: none !important; }
+
+        /* ═══ RESPONSIVE ═══ */
+        @media (max-width: 400px) {
+            .container { padding: 120px 16px 32px 16px; }
+            .profile-card { padding: 24px 20px; }
+            .avatar { width: 80px; height: 80px; font-size: 32px; }
+            .profile-name { font-size: 24px; }
+            .social-grid { grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Loading State -->
+<div id="loadingState" class="loading-state">
+    <div class="loading-icon">📇</div>
+    <div class="loading-text">Loading contact...</div>
+</div>
+
+<!-- Error State -->
+<div id="errorState" class="error-state">
+    <div class="error-icon">❌</div>
+    <h2 class="error-title">Contact Not Found</h2>
+    <p class="error-message">This digital contact card could not be found or is no longer active.</p>
+</div>
+
+<!-- Main Content -->
+<div id="mainContent" class="hidden">
+    <div class="island-header">
+        <h1>📇 Digital Contact</h1>
+    </div>
+
+    <div class="container">
+        <!-- Profile Card -->
+        <div class="profile-card">
+            <div class="avatar" id="avatar"></div>
+            <h1 class="profile-name" id="name"></h1>
+            <p class="profile-title" id="title"></p>
+
+            <div class="quick-actions">
+                <button class="quick-btn btn-primary" onclick="downloadVCard()">
+                    <span>💾</span>
+                    <span>Save</span>
+                </button>
+                <button class="quick-btn btn-secondary" id="shareBtn" onclick="shareContact()">
+                    <span>↗</span>
+                    <span>Share</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Contact Info -->
+        <div class="info-section" id="contactInfo"></div>
+
+        <!-- Social Links -->
+        <div class="social-section" id="socialSection" style="display:none;">
+            <div class="social-title">Social</div>
+            <div class="social-grid" id="socialGrid"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+const API_URL = window.location.origin + '/api';
+let cardData = null;
+
+const pathParts = window.location.pathname.split('/');
+const cardId = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
+
+const SOCIAL_ICONS = {
+    linkedin:  { icon: '💼', label: 'LinkedIn',  bg: 'rgba(0,119,181,0.15)' },
+    twitter:   { icon: '𝕏',  label: 'X',         bg: 'rgba(29,161,242,0.15)' },
+    instagram: { icon: '📷', label: 'Instagram', bg: 'rgba(228,64,95,0.15)' },
+    facebook:  { icon: 'f',  label: 'Facebook',  bg: 'rgba(24,119,242,0.15)' },
+    github:    { icon: '⌐',  label: 'GitHub',    bg: 'rgba(255,255,255,0.15)' },
+    tiktok:    { icon: '♪',  label: 'TikTok',    bg: 'rgba(254,44,85,0.15)' },
+    youtube:   { icon: '▶',  label: 'YouTube',   bg: 'rgba(255,0,0,0.15)' },
+    portfolio: { icon: '🗂', label: 'Portfolio', bg: 'rgba(100,210,255,0.15)' }
+};
+
+async function loadCard() {
+    try {
+        const res = await fetch(`${API_URL}/vcard/${cardId}`);
+        if (res.ok) {
+            cardData = await res.json();
+            displayCard();
+        } else {
+            showError();
+        }
+    } catch (err) {
+        showError();
+    }
+}
+
+function displayCard() {
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('mainContent').classList.remove('hidden');
+
+    const initials = cardData.name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
+    document.getElementById('avatar').textContent = initials;
+    document.getElementById('name').textContent = cardData.name;
+    document.getElementById('title').textContent = cardData.title || '';
+
+    document.title = `${cardData.name} - Digital Contact`;
+
+    renderContactInfo();
+    renderSocialLinks();
+}
+
+function renderContactInfo() {
+    const container = document.getElementById('contactInfo');
+    let html = '';
+
+    const fields = [
+        { key: 'phone',   icon: '📱', label: 'Phone',   color: 'green',  href: (v) => `tel:${v}` },
+        { key: 'email',   icon: '✉️', label: 'Email',   color: 'blue',   href: (v) => `mailto:${v}` },
+        { key: 'website', icon: '🌐', label: 'Website', color: 'cyan',   href: (v) => v.startsWith('http') ? v : `https://${v}` },
+        { key: 'company', icon: '🏢', label: 'Company', color: 'purple' },
+        { key: 'address', icon: '📍', label: 'Address', color: 'orange' }
+    ];
+
+    fields.forEach(f => {
+        if (cardData[f.key]) {
+            const value = cardData[f.key];
+            const content = f.href 
+                ? `<a href="${f.href(value)}" target="_blank">${value}</a>`
+                : value;
+            
+            html += `
+                <div class="info-row">
+                    <div class="info-icon icon-${f.color}">${f.icon}</div>
+                    <div class="info-content">
+                        <div class="info-label">${f.label}</div>
+                        <div class="info-value">${content}</div>
+                    </div>
+                </div>
+            `;
+        }
+    });
+
+    container.innerHTML = html;
+}
+
+function renderSocialLinks() {
+    const ef = cardData.extra_fields || {};
+    const socialKeys = Object.keys(ef).filter(k => SOCIAL_ICONS[k]);
+
+    if (socialKeys.length === 0) return;
+
+    document.getElementById('socialSection').style.display = 'block';
+    const grid = document.getElementById('socialGrid');
+
+    grid.innerHTML = socialKeys.map(key => {
+        const def = SOCIAL_ICONS[key];
+        return `
+            <a href="${ef[key]}" target="_blank" class="social-btn" style="background:${def.bg};">
+                <div class="social-icon">${def.icon}</div>
+                <div class="social-label">${def.label}</div>
+            </a>
+        `;
+    }).join('');
+}
+
+function showError() {
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('errorState').style.display = 'flex';
+}
+
+function downloadVCard() {
+    if (!cardData) return;
+
+    const lines = [
+        'BEGIN:VCARD',
+        'VERSION:3.0',
+        `FN:${cardData.name}`,
+        `N:${cardData.name.split(' ').reverse().join(';')}`,
+        cardData.title ? `TITLE:${cardData.title}` : '',
+        cardData.phone ? `TEL;TYPE=CELL:${cardData.phone}` : '',
+        cardData.email ? `EMAIL:${cardData.email}` : '',
+        cardData.website ? `URL:${cardData.website}` : '',
+        cardData.company ? `ORG:${cardData.company}` : '',
+        cardData.address ? `ADR;TYPE=WORK:;;${cardData.address.replace(/\n/g,';')}` : ''
+    ];
+
+    // add social from extra_fields
+    const ef = cardData.extra_fields || {};
+    Object.keys(ef).forEach(k => {
+        if (ef[k]) lines.push(`X-SOCIALPROFILE;TYPE=${k}:${ef[k]}`);
+    });
+
+    lines.push('END:VCARD');
+
+    const vcard = lines.filter(l => l).join('\n');
+    const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${cardData.name.replace(/\s+/g,'_')}.vcf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+}
+
+async function shareContact() {
+    if (!cardData) return;
+
+    const text = `${cardData.name}${cardData.title ? ' - ' + cardData.title : ''}\n${window.location.href}`;
+
+    if (navigator.share) {
+        try {
+            await navigator.share({ 
+                title: cardData.name,
+                text: text,
+                url: window.location.href
+            });
+        } catch(e) {
+            if (e.name !== 'AbortError') copyToClipboard();
+        }
+    } else {
+        copyToClipboard();
+    }
+}
+
+function copyToClipboard() {
+    const url = window.location.href;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(() => {
+            alert('Link copied to clipboard!');
+        });
+    }
+}
+
+loadCard();
+
+})();
+</script>
+</body>
+</html>
