@@ -348,10 +348,21 @@ app.get('/api/history', authenticateToken, (req, res) => {
 
 // GET summary statistics
 app.get('/api/summary', authenticateToken, (req, res) => {
+  // Accept optional date range
+  const from = req.query.from || '2020-01-01';
+  const to = req.query.to || new Date().toISOString().slice(0,10);
+  
   const totalCards = db.prepare('SELECT COUNT(*) as count FROM vcards WHERE user_id = ? AND deleted_at IS NULL').get(req.user.id).count;
   const activeCards = db.prepare('SELECT COUNT(*) as count FROM vcards WHERE user_id = ? AND is_active = 1 AND deleted_at IS NULL').get(req.user.id).count;
   const deletedCards = db.prepare('SELECT COUNT(*) as count FROM vcards WHERE user_id = ? AND deleted_at IS NOT NULL').get(req.user.id).count;
   const totalScans = db.prepare('SELECT SUM(scan_count) as total FROM vcards WHERE user_id = ? AND deleted_at IS NULL').get(req.user.id).total || 0;
+  
+  // Get scans in date range
+  const scansInRange = db.prepare(`
+    SELECT COUNT(*) as count FROM scan_logs sl
+    JOIN vcards v ON sl.card_id = v.card_id
+    WHERE v.user_id = ? AND DATE(sl.scanned_at) >= ? AND DATE(sl.scanned_at) <= ?
+  `).get(req.user.id, from, to).count;
   
   // Get scans today
   const today = new Date().toISOString().slice(0,10);
@@ -380,7 +391,7 @@ app.get('/api/summary', authenticateToken, (req, res) => {
   // Most scanned card
   const topCard = db.prepare(`
     SELECT card_id, name, scan_count FROM vcards
-    WHERE user_id = ?
+    WHERE user_id = ? AND deleted_at IS NULL
     ORDER BY scan_count DESC
     LIMIT 1
   `).get(req.user.id);
@@ -402,6 +413,7 @@ app.get('/api/summary', authenticateToken, (req, res) => {
     inactiveCards: totalCards - activeCards,
     deletedCards,
     totalScans,
+    scansInRange,
     scansToday,
     scansThisWeek,
     scansThisMonth,
@@ -409,7 +421,8 @@ app.get('/api/summary', authenticateToken, (req, res) => {
     recentActivity: {
       created: recentCreated,
       deleted: recentDeleted
-    }
+    },
+    dateRange: { from, to }
   });
 });
 
@@ -456,6 +469,134 @@ app.get('/api/vcards/:id/stats', authenticateToken, (req, res) => {
     daily_scans      : dailyScans,
     range            : { from: from, to: to }     // echo back so frontend can confirm
   });
+});
+
+// ─── EXCEL EXPORT / IMPORT ──────────────────────
+
+// Export cards to Excel (simple CSV format since xlsx is not in dependencies)
+app.get('/api/vcards/export', authenticateToken, (req, res) => {
+  const includeDeleted = req.query.includeDeleted === 'true';
+  const query = includeDeleted
+    ? 'SELECT * FROM vcards WHERE user_id = ? ORDER BY created_at DESC'
+    : 'SELECT * FROM vcards WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at DESC';
+  
+  const cards = db.prepare(query).all(req.user.id);
+  
+  // Generate CSV
+  const headers = ['card_id', 'name', 'title', 'phone', 'email', 'website', 'company', 'address', 'is_active'];
+  const rows = cards.map(c => {
+    const ef = JSON.parse(c.extra_fields || '{}');
+    return [
+      c.card_id,
+      c.name,
+      c.title || '',
+      c.phone || '',
+      c.email,
+      c.website || '',
+      c.company || '',
+      c.address || '',
+      c.is_active ? 'Yes' : 'No',
+      ef.linkedin || '',
+      ef.twitter || '',
+      ef.instagram || '',
+      ef.facebook || '',
+      ef.github || '',
+      ef.tiktok || '',
+      ef.youtube || '',
+      ef.portfolio || ''
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+  });
+  
+  const csv = [
+    [...headers, 'linkedin', 'twitter', 'instagram', 'facebook', 'github', 'tiktok', 'youtube', 'portfolio'].join(','),
+    ...rows
+  ].join('\n');
+  
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="vcards_export.csv"');
+  res.send(csv);
+});
+
+// Download Excel template
+app.get('/api/vcards/template', (req, res) => {
+  const headers = ['card_id', 'name', 'title', 'phone', 'email', 'website', 'company', 'address', 'is_active', 'linkedin', 'twitter', 'instagram', 'facebook', 'github', 'tiktok', 'youtube', 'portfolio'];
+  const example = ['john-smith', 'John Smith', 'Software Engineer', '+1 555 123 4567', 'john@example.com', 'https://johnsmith.com', 'Tech Corp', '123 Main St, City, Country', 'Yes', 'https://linkedin.com/in/johnsmith', '', 'https://instagram.com/johnsmith', '', '', '', '', ''];
+  
+  const csv = [
+    headers.join(','),
+    example.map(v => `"${v}"`).join(',')
+  ].join('\n');
+  
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="vcard_import_template.csv"');
+  res.send(csv);
+});
+
+// Import cards from CSV
+app.post('/api/vcards/import', authenticateToken, (req, res) => {
+  const { rows } = req.body;
+  
+  if (!rows || !Array.isArray(rows)) {
+    return res.status(400).json({ error: 'Invalid import data' });
+  }
+  
+  const results = { success: 0, failed: 0, errors: [] };
+  
+  rows.forEach((row, idx) => {
+    try {
+      const [card_id, name, title, phone, email, website, company, address, is_active, linkedin, twitter, instagram, facebook, github, tiktok, youtube, portfolio] = row;
+      
+      if (!card_id || !name || !email) {
+        results.failed++;
+        results.errors.push(`Row ${idx + 1}: Missing required fields (card_id, name, email)`);
+        return;
+      }
+      
+      // Check if card_id already exists
+      const existing = db.prepare('SELECT id FROM vcards WHERE card_id = ?').get(card_id);
+      if (existing) {
+        results.failed++;
+        results.errors.push(`Row ${idx + 1}: Card ID "${card_id}" already exists`);
+        return;
+      }
+      
+      // Build extra_fields from social columns
+      const extra_fields = {};
+      if (linkedin) extra_fields.linkedin = linkedin;
+      if (twitter) extra_fields.twitter = twitter;
+      if (instagram) extra_fields.instagram = instagram;
+      if (facebook) extra_fields.facebook = facebook;
+      if (github) extra_fields.github = github;
+      if (tiktok) extra_fields.tiktok = tiktok;
+      if (youtube) extra_fields.youtube = youtube;
+      if (portfolio) extra_fields.portfolio = portfolio;
+      
+      const active = is_active && (is_active.toLowerCase() === 'yes' || is_active === '1') ? 1 : 0;
+      
+      db.prepare(`
+        INSERT INTO vcards (user_id, card_id, name, title, phone, email, website, company, address,
+                            linkedin, twitter, instagram, is_active, extra_fields)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        req.user.id, card_id, name, title || '', phone || '', email,
+        website || '', company || '', address || '',
+        linkedin || '', twitter || '', instagram || '',
+        active, JSON.stringify(extra_fields)
+      );
+      
+      // Log history
+      db.prepare('INSERT INTO card_history (user_id, card_id, card_name, action, details) VALUES (?, ?, ?, ?, ?)').run(
+        req.user.id, card_id, name, 'created', `Imported card: ${name}`
+      );
+      
+      results.success++;
+    } catch (err) {
+      results.failed++;
+      results.errors.push(`Row ${idx + 1}: ${err.message}`);
+    }
+  });
+  
+  res.json(results);
 });
 
 // ─── PUBLIC CARD PAGE ────────────────────────────
