@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NFC vCard Manager</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 
@@ -834,8 +835,14 @@ body {
       <div class="section">
         <div class="section-header">
           <h2>My Cards</h2>
-          <button id="createBtn" class="btn">Create Card</button>
+          <div style="display:flex; gap:8px;">
+            <button id="exportCardsBtn" class="btn btn-sm" style="background:var(--ios-green);">📤 Export</button>
+            <button id="importCardsBtn" class="btn btn-sm" style="background:var(--ios-orange);">📥 Import</button>
+            <button id="downloadTemplateBtn" class="btn btn-sm btn-gray">📋 Template</button>
+            <button id="createBtn" class="btn">Create Card</button>
+          </div>
         </div>
+        <input type="file" id="importFileInput" accept=".xlsx,.xls" style="display:none;">
         <div id="successAlert" class="alert alert-success hidden"></div>
         <div id="cardsContainer">
           <div class="empty-state"><h3>No Cards Yet</h3><p>Create your first vCard to get started</p></div>
@@ -860,7 +867,26 @@ body {
 
     <!-- Summary Tab -->
     <div id="tab-summary" class="tab-content">
-      <div class="summary-grid" style="margin-top:24px;">
+      <div class="section" style="margin-top:24px; padding-bottom:20px;">
+        <div class="section-header">
+          <h2>Summary Statistics</h2>
+          <button id="exportSummaryBtn" class="btn btn-sm" style="background:var(--ios-green);">📊 Export to Excel</button>
+        </div>
+        
+        <!-- Date Range Filters -->
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:16px; background:var(--ios-gray-light); border-radius:var(--radius-sm); margin-bottom:20px;">
+          <label style="font-size:14px; font-weight:600; color:var(--ios-text-secondary);">Date Range:</label>
+          <input type="date" id="summaryFrom" style="padding:8px 12px; border:0.5px solid var(--ios-border); border-radius:var(--radius-sm); 
+                 font-size:14px; background:var(--ios-card); color:var(--ios-text); cursor:pointer;">
+          <label style="font-size:14px; font-weight:600; color:var(--ios-text-secondary);">To:</label>
+          <input type="date" id="summaryTo" style="padding:8px 12px; border:0.5px solid var(--ios-border); border-radius:var(--radius-sm); 
+                 font-size:14px; background:var(--ios-card); color:var(--ios-text); cursor:pointer;">
+          <button id="applySummaryDateBtn" class="btn btn-sm">Apply</button>
+          <button id="resetSummaryDateBtn" class="btn btn-sm btn-gray">Reset</button>
+        </div>
+      </div>
+      
+      <div class="summary-grid" style="margin-top:0;">
         <div class="summary-card">
           <div class="summary-label">Total Cards</div>
           <div class="summary-value purple" id="summaryTotalCards">0</div>
@@ -916,6 +942,27 @@ body {
           <h2>Card History</h2>
           <button id="refreshHistoryBtn" class="btn btn-sm">🔄 Refresh</button>
         </div>
+        
+        <!-- Search and Filters -->
+        <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:250px;">
+            <input type="text" id="historySearch" placeholder="🔍 Search by name or card ID..." 
+                   style="width:100%; padding:10px 14px; border:0.5px solid var(--ios-border); border-radius:var(--radius-sm); 
+                          font-size:14px; background:var(--ios-card); color:var(--ios-text);">
+          </div>
+          <select id="historyActionFilter" style="padding:10px 14px; border:0.5px solid var(--ios-border); 
+                  border-radius:var(--radius-sm); font-size:14px; background:var(--ios-card); color:var(--ios-text); cursor:pointer;">
+            <option value="">All Actions</option>
+            <option value="created">Created</option>
+            <option value="updated">Updated</option>
+            <option value="activated">Activated</option>
+            <option value="deactivated">Deactivated</option>
+            <option value="deleted">Deleted</option>
+            <option value="restored">Restored</option>
+            <option value="permanently_deleted">Permanently Deleted</option>
+          </select>
+        </div>
+        
         <div style="overflow-x:auto;">
           <table class="history-table">
             <thead>
@@ -1570,6 +1617,8 @@ document.getElementById('emptyTrashBtn').addEventListener('click', function(){
 });
 
 /* ── HISTORY ── */
+var allHistory = []; // Store all history for client-side filtering
+
 function loadHistory(){
     fetch(apiUrl('/history?limit=100'), {
         headers:{'Authorization':'Bearer '+token}
@@ -1577,16 +1626,35 @@ function loadHistory(){
     .then(function(r){ if(r.status===401){goToLogin();return null;} return r.json(); })
     .then(function(data){
         if(!data) return;
-        renderHistory(data);
+        allHistory = data;
+        renderHistory(allHistory);
     })
     .catch(function(e){ console.error('loadHistory',e); });
 }
+
+function filterHistory(){
+    var searchTerm = document.getElementById('historySearch').value.toLowerCase();
+    var actionFilter = document.getElementById('historyActionFilter').value;
+    
+    var filtered = allHistory.filter(function(h){
+        var matchesSearch = !searchTerm || 
+            h.card_name.toLowerCase().indexOf(searchTerm) !== -1 || 
+            h.card_id.toLowerCase().indexOf(searchTerm) !== -1;
+        var matchesAction = !actionFilter || h.action === actionFilter;
+        return matchesSearch && matchesAction;
+    });
+    
+    renderHistory(filtered);
+}
+
+document.getElementById('historySearch').addEventListener('input', filterHistory);
+document.getElementById('historyActionFilter').addEventListener('change', filterHistory);
 
 function renderHistory(history){
     var tbody = document.getElementById('historyTableBody');
     
     if(!history || history.length === 0){
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:40px; color:var(--ios-text-tertiary);">No history yet</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:40px; color:var(--ios-text-tertiary);">No history found</td></tr>';
         return;
     }
     
@@ -1597,7 +1665,7 @@ function renderHistory(history){
         return '<tr>' +
             '<td>' + date.toLocaleString() + '</td>' +
             '<td><strong>' + esc(h.card_name) + '</strong><br><small style="color:var(--ios-text-tertiary);">' + esc(h.card_id) + '</small></td>' +
-            '<td><span class="action-badge ' + actionClass + '">' + h.action.charAt(0).toUpperCase() + h.action.slice(1) + '</span></td>' +
+            '<td><span class="action-badge ' + actionClass + '">' + h.action.charAt(0).toUpperCase() + h.action.slice(1).replace('_', ' ') + '</span></td>' +
             '<td>' + esc(h.details || '') + '</td>' +
         '</tr>';
     }).join('');
@@ -1605,9 +1673,152 @@ function renderHistory(history){
 
 document.getElementById('refreshHistoryBtn').addEventListener('click', loadHistory);
 
+/* ── IMPORT / EXPORT CARDS ── */
+// Export cards to CSV
+document.getElementById('exportCardsBtn').addEventListener('click', function(){
+    window.location.href = apiUrl('/vcards/export') + '?authorization=' + encodeURIComponent('Bearer ' + token);
+});
+
+// Download template
+document.getElementById('downloadTemplateBtn').addEventListener('click', function(){
+    window.location.href = apiUrl('/vcards/template');
+});
+
+// Import cards
+document.getElementById('importCardsBtn').addEventListener('click', function(){
+    document.getElementById('importFileInput').click();
+});
+
+document.getElementById('importFileInput').addEventListener('change', function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    
+    var reader = new FileReader();
+    reader.onload = function(event){
+        var csv = event.target.result;
+        var lines = csv.split('\n').filter(function(l){ return l.trim(); });
+        
+        if(lines.length < 2){
+            alert('File is empty or invalid');
+            return;
+        }
+        
+        // Skip header row
+        var dataRows = lines.slice(1).map(function(line){
+            // Parse CSV (simple implementation)
+            var values = [];
+            var current = '';
+            var inQuotes = false;
+            
+            for(var i = 0; i < line.length; i++){
+                var char = line[i];
+                if(char === '"' && (i === 0 || line[i-1] !== '\\')){
+                    inQuotes = !inQuotes;
+                } else if(char === ',' && !inQuotes){
+                    values.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            values.push(current.trim());
+            
+            // Remove surrounding quotes
+            return values.map(function(v){ 
+                return v.replace(/^"(.*)"$/, '$1').replace(/""/g, '"'); 
+            });
+        });
+        
+        if(!confirm('Import ' + dataRows.length + ' cards?')) return;
+        
+        fetch(apiUrl('/vcards/import'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ rows: dataRows })
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(result){
+            var msg = 'Import complete!\n\nSuccess: ' + result.success + '\nFailed: ' + result.failed;
+            if(result.errors.length > 0){
+                msg += '\n\nErrors:\n' + result.errors.slice(0, 5).join('\n');
+                if(result.errors.length > 5) msg += '\n... and ' + (result.errors.length - 5) + ' more';
+            }
+            alert(msg);
+            loadCards();
+        })
+        .catch(function(){ alert('Import failed'); });
+        
+        // Reset input
+        e.target.value = '';
+    };
+    reader.readAsText(file);
+});
+
+/* ── SUMMARY STATISTICS WITH DATE FILTERS ── */
+var summaryFrom = null;
+var summaryTo = null;
+
+document.getElementById('applySummaryDateBtn').addEventListener('click', function(){
+    summaryFrom = document.getElementById('summaryFrom').value;
+    summaryTo = document.getElementById('summaryTo').value;
+    
+    if(!summaryFrom || !summaryTo){
+        alert('Please select both From and To dates');
+        return;
+    }
+    
+    loadSummary();
+});
+
+document.getElementById('resetSummaryDateBtn').addEventListener('click', function(){
+    summaryFrom = null;
+    summaryTo = null;
+    document.getElementById('summaryFrom').value = '';
+    document.getElementById('summaryTo').value = '';
+    loadSummary();
+});
+
+document.getElementById('exportSummaryBtn').addEventListener('click', function(){
+    // Export summary as CSV
+    var data = [
+        ['Metric', 'Value'],
+        ['Total Cards', document.getElementById('summaryTotalCards').textContent],
+        ['Active Cards', document.getElementById('summaryActiveCards').textContent],
+        ['Inactive Cards', document.getElementById('summaryInactiveCards').textContent],
+        ['Deleted Cards', document.getElementById('summaryDeletedCards').textContent],
+        ['Total Scans', document.getElementById('summaryTotalScans').textContent],
+        ['Scans Today', document.getElementById('summaryScansToday').textContent],
+        ['Scans This Week', document.getElementById('summaryScansWeek').textContent.replace(' this week', '')],
+        ['Scans This Month', document.getElementById('summaryScansMonth').textContent],
+        ['Cards Created (Last 7 Days)', document.getElementById('summaryRecentCreated').textContent],
+        ['Cards Deleted (Last 7 Days)', document.getElementById('summaryRecentDeleted').textContent]
+    ];
+    
+    var csv = data.map(function(row){ return row.join(','); }).join('\n');
+    var blob = new Blob([csv], { type: 'text/csv' });
+    var url = window.URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'summary_export_' + new Date().toISOString().slice(0,10) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+});
+
 /* ── SUMMARY STATISTICS ── */
+var summaryDateRange = { from: null, to: null };
+
 function loadSummary(){
-    fetch(apiUrl('/summary'), {
+    var url = apiUrl('/summary');
+    if(summaryDateRange.from && summaryDateRange.to){
+        url += '?from=' + summaryDateRange.from + '&to=' + summaryDateRange.to;
+    }
+    
+    fetch(url, {
         headers:{'Authorization':'Bearer '+token}
     })
     .then(function(r){ if(r.status===401){goToLogin();return null;} return r.json(); })
@@ -1617,6 +1828,58 @@ function loadSummary(){
     })
     .catch(function(e){ console.error('loadSummary',e); });
 }
+
+// Initialize summary dates to all time
+document.getElementById('summaryFrom').value = '2020-01-01';
+document.getElementById('summaryTo').value = today();
+
+document.getElementById('applySummaryDateBtn').addEventListener('click', function(){
+    summaryDateRange.from = document.getElementById('summaryFrom').value;
+    summaryDateRange.to = document.getElementById('summaryTo').value;
+    loadSummary();
+});
+
+document.getElementById('resetSummaryDateBtn').addEventListener('click', function(){
+    summaryDateRange = { from: null, to: null };
+    document.getElementById('summaryFrom').value = '2020-01-01';
+    document.getElementById('summaryTo').value = today();
+    loadSummary();
+});
+
+// Export summary to Excel
+document.getElementById('exportSummaryBtn').addEventListener('click', function(){
+    if(typeof XLSX === 'undefined'){
+        alert('Excel library not loaded. Please refresh the page.');
+        return;
+    }
+    
+    var wb = XLSX.utils.book_new();
+    
+    // Summary sheet
+    var summaryData = [
+        ['NFC vCard System - Summary Report'],
+        ['Generated:', new Date().toLocaleString()],
+        ['Date Range:', summaryDateRange.from || 'All Time', 'to', summaryDateRange.to || today()],
+        [],
+        ['Metric', 'Value'],
+        ['Total Cards', document.getElementById('summaryTotalCards').textContent],
+        ['Active Cards', document.getElementById('summaryActiveCards').textContent],
+        ['Inactive Cards', document.getElementById('summaryInactiveCards').textContent],
+        ['Deleted Cards', document.getElementById('summaryDeletedCards').textContent],
+        ['Total Scans', document.getElementById('summaryTotalScans').textContent],
+        ['Scans Today', document.getElementById('summaryScansToday').textContent],
+        ['Scans This Week', document.getElementById('summaryScansWeek').textContent.replace(' this week', '')],
+        ['Scans This Month', document.getElementById('summaryScansMonth').textContent],
+        ['Cards Created (Last 7 Days)', document.getElementById('summaryRecentCreated').textContent],
+        ['Cards Deleted (Last 7 Days)', document.getElementById('summaryRecentDeleted').textContent]
+    ];
+    
+    var ws = XLSX.utils.aoa_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, ws, 'Summary');
+    
+    XLSX.writeFile(wb, 'vcard-summary-' + new Date().toISOString().slice(0,10) + '.xlsx');
+    flashSuccess('Summary exported to Excel!');
+});
 
 function renderSummary(data){
     document.getElementById('summaryTotalCards').textContent = data.totalCards;
@@ -1648,6 +1911,214 @@ function renderSummary(data){
         topContainer.innerHTML = '<div class="empty-state" style="padding:40px 20px;"><p>No scan data yet</p></div>';
     }
 }
+
+/* ── IMPORT / EXPORT CARDS ── */
+
+// Download Excel template
+document.getElementById('downloadTemplateBtn').addEventListener('click', function(){
+    if(typeof XLSX === 'undefined'){
+        alert('Excel library not loaded. Please refresh the page.');
+        return;
+    }
+    
+    var templateData = [
+        ['NFC vCard Import Template'],
+        ['Instructions: Fill in the rows below. Required fields are marked with *. Leave card_id empty for auto-generation.'],
+        [],
+        ['card_id*', 'name*', 'title', 'email*', 'phone', 'website', 'company', 'address', 'linkedin', 'twitter', 'instagram', 'facebook', 'github', 'tiktok', 'youtube', 'portfolio'],
+        ['john-smith', 'John Smith', 'CEO', 'john@example.com', '+1-555-0001', 'https://example.com', 'Example Corp', '123 Main St, City', 'https://linkedin.com/in/john', '', '', '', '', '', '', ''],
+        ['jane-doe', 'Jane Doe', 'Designer', 'jane@example.com', '+1-555-0002', '', 'Design Studio', '', '', 'https://twitter.com/jane', 'https://instagram.com/jane', '', '', '', '', 'https://portfolio.com']
+    ];
+    
+    var ws = XLSX.utils.aoa_to_sheet(templateData);
+    
+    // Set column widths
+    ws['!cols'] = [
+        {wch: 15}, {wch: 20}, {wch: 20}, {wch: 25}, {wch: 15}, 
+        {wch: 30}, {wch: 20}, {wch: 30}, {wch: 30}, {wch: 30},
+        {wch: 30}, {wch: 30}, {wch: 30}, {wch: 30}, {wch: 30}, {wch: 30}
+    ];
+    
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    
+    XLSX.writeFile(wb, 'vcard-import-template.xlsx');
+    flashSuccess('Template downloaded!');
+});
+
+// Export current cards
+document.getElementById('exportCardsBtn').addEventListener('click', function(){
+    if(typeof XLSX === 'undefined'){
+        alert('Excel library not loaded. Please refresh the page.');
+        return;
+    }
+    
+    if(cards.length === 0){
+        alert('No cards to export');
+        return;
+    }
+    
+    var exportData = [['card_id', 'name', 'title', 'email', 'phone', 'website', 'company', 'address', 'linkedin', 'twitter', 'instagram', 'facebook', 'github', 'tiktok', 'youtube', 'portfolio', 'is_active', 'scan_count']];
+    
+    cards.forEach(function(c){
+        var ef = c.extra_fields || {};
+        exportData.push([
+            c.card_id,
+            c.name,
+            c.title || '',
+            c.email,
+            c.phone || '',
+            c.website || '',
+            c.company || '',
+            c.address || '',
+            ef.linkedin || '',
+            ef.twitter || '',
+            ef.instagram || '',
+            ef.facebook || '',
+            ef.github || '',
+            ef.tiktok || '',
+            ef.youtube || '',
+            ef.portfolio || '',
+            c.is_active ? 'Yes' : 'No',
+            c.scan_count
+        ]);
+    });
+    
+    var ws = XLSX.utils.aoa_to_sheet(exportData);
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cards');
+    
+    XLSX.writeFile(wb, 'vcards-export-' + new Date().toISOString().slice(0,10) + '.xlsx');
+    flashSuccess('Cards exported to Excel!');
+});
+
+// Import cards
+document.getElementById('importCardsBtn').addEventListener('click', function(){
+    document.getElementById('importFileInput').click();
+});
+
+document.getElementById('importFileInput').addEventListener('change', function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    
+    if(typeof XLSX === 'undefined'){
+        alert('Excel library not loaded. Please refresh the page.');
+        return;
+    }
+    
+    var reader = new FileReader();
+    reader.onload = function(e){
+        try {
+            var data = new Uint8Array(e.target.result);
+            var workbook = XLSX.read(data, {type: 'array'});
+            var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            var rows = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+            
+            // Find header row (should contain 'card_id', 'name', 'email')
+            var headerIndex = -1;
+            for(var i = 0; i < Math.min(10, rows.length); i++){
+                if(rows[i].indexOf('card_id') !== -1 || rows[i].indexOf('name') !== -1){
+                    headerIndex = i;
+                    break;
+                }
+            }
+            
+            if(headerIndex === -1){
+                alert('Could not find header row. Please use the template format.');
+                return;
+            }
+            
+            var headers = rows[headerIndex];
+            var dataRows = rows.slice(headerIndex + 1);
+            
+            // Map headers to indices
+            var colMap = {};
+            headers.forEach(function(h, idx){ if(h) colMap[h.toLowerCase().trim()] = idx; });
+            
+            var toImport = [];
+            dataRows.forEach(function(row){
+                if(!row || row.length === 0 || !row[colMap['name']]) return;
+                
+                var cardId = row[colMap['card_id']] || '';
+                var name = row[colMap['name']];
+                var email = row[colMap['email']];
+                
+                if(!name || !email) return; // Skip invalid rows
+                
+                // If no card_id provided, generate one
+                if(!cardId){
+                    cardId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now();
+                }
+                
+                var extra = {};
+                ['linkedin', 'twitter', 'instagram', 'facebook', 'github', 'tiktok', 'youtube', 'portfolio'].forEach(function(k){
+                    if(colMap[k] !== undefined && row[colMap[k]]){
+                        extra[k] = row[colMap[k]];
+                    }
+                });
+                
+                toImport.push({
+                    card_id: cardId,
+                    name: name,
+                    title: row[colMap['title']] || '',
+                    email: email,
+                    phone: row[colMap['phone']] || '',
+                    website: row[colMap['website']] || '',
+                    company: row[colMap['company']] || '',
+                    address: row[colMap['address']] || '',
+                    extra_fields: extra,
+                    is_active: 1
+                });
+            });
+            
+            if(toImport.length === 0){
+                alert('No valid cards found in the file');
+                return;
+            }
+            
+            if(!confirm('Import ' + toImport.length + ' cards?')){
+                return;
+            }
+            
+            // Import cards one by one
+            var imported = 0;
+            var failed = 0;
+            
+            function importNext(index){
+                if(index >= toImport.length){
+                    flashSuccess('Import complete: ' + imported + ' cards imported' + (failed > 0 ? ', ' + failed + ' failed' : ''));
+                    loadCards();
+                    return;
+                }
+                
+                fetch(apiUrl('/vcards'), {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
+                    body: JSON.stringify(toImport[index])
+                })
+                .then(function(r){ return r.json().then(function(d){ return {ok: r.ok, data: d}; }); })
+                .then(function(r){
+                    if(r.ok) imported++;
+                    else failed++;
+                    importNext(index + 1);
+                })
+                .catch(function(){
+                    failed++;
+                    importNext(index + 1);
+                });
+            }
+            
+            importNext(0);
+            
+        } catch(err) {
+            console.error(err);
+            alert('Error reading file. Please make sure it\'s a valid Excel file.');
+        }
+    };
+    
+    reader.readAsArrayBuffer(file);
+    e.target.value = ''; // Reset file input
+});
 
 (function(){
     try { token = localStorage.getItem('nfc_token'); } catch(e){}
