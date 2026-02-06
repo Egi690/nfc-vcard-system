@@ -321,18 +321,36 @@ app.post('/api/vcards/:id/restore', authenticateToken, (req, res) => {
 
 // PERMANENTLY delete card
 app.delete('/api/vcards/:id/permanent', authenticateToken, (req, res) => {
-  const vcard = db.prepare('SELECT * FROM vcards WHERE id = ? AND user_id = ? AND deleted_at IS NOT NULL').get(req.params.id, req.user.id);
-  if (!vcard) return res.status(404).json({ error: 'Deleted card not found or unauthorized' });
-
-  // Log before permanent deletion
-  db.prepare('INSERT INTO card_history (user_id, card_id, card_name, action, details) VALUES (?, ?, ?, ?, ?)').run(
-    req.user.id, vcard.card_id, vcard.name, 'permanently_deleted', `Permanently deleted card: ${vcard.name}`
-  );
-
-  // Hard delete from database
-  db.prepare('DELETE FROM vcards WHERE id = ?').run(req.params.id);
-  
-  res.json({ message: 'Card permanently deleted' });
+  try {
+    const id = parseInt(req.params.id, 10);
+    console.log('Permanent delete attempt for card ID:', id, 'by user:', req.user.id);
+    
+    const vcard = db.prepare('SELECT * FROM vcards WHERE id = ? AND user_id = ?').get(id, req.user.id);
+    
+    if (!vcard) {
+      console.log('Card not found or unauthorized');
+      return res.status(404).json({ error: 'Card not found or unauthorized' });
+    }
+    
+    if (!vcard.deleted_at) {
+      console.log('Card is not in trash, must be soft-deleted first');
+      return res.status(400).json({ error: 'Card must be deleted first before permanent deletion' });
+    }
+    
+    // Log before permanent deletion
+    db.prepare('INSERT INTO card_history (user_id, card_id, card_name, action, details) VALUES (?, ?, ?, ?, ?)').run(
+      req.user.id, vcard.card_id, vcard.name, 'permanently_deleted', `Permanently deleted card: ${vcard.name}`
+    );
+    
+    // Hard delete from database
+    db.prepare('DELETE FROM vcards WHERE id = ?').run(id);
+    
+    console.log('Card permanently deleted successfully');
+    res.json({ message: 'Card permanently deleted' });
+  } catch (err) {
+    console.error('Permanent delete error:', err);
+    res.status(500).json({ error: 'Failed to delete card: ' + err.message });
+  }
 });
 
 // ─── HISTORY & SUMMARY ──────────────────────────
@@ -570,9 +588,13 @@ app.post('/api/vcards/import', authenticateToken, upload.single('file'), (req, r
     
     rows.forEach((row, idx) => {
       try {
-        const card_id = row.card_id || row['card_id'];
-        const name = row.name || row['name'];
-        const email = row.email || row['email'];
+        // Skip completely empty rows
+        const isEmpty = !row.card_id && !row.name && !row.email;
+        if (isEmpty) return;
+        
+        const card_id = String(row.card_id || '').trim();
+        const name = String(row.name || '').trim();
+        const email = String(row.email || '').trim();
         
         if (!card_id || !name || !email) {
           results.failed++;
@@ -590,14 +612,14 @@ app.post('/api/vcards/import', authenticateToken, upload.single('file'), (req, r
         
         // Build extra_fields from social columns
         const extra_fields = {};
-        if (row.linkedin) extra_fields.linkedin = row.linkedin;
-        if (row.twitter) extra_fields.twitter = row.twitter;
-        if (row.instagram) extra_fields.instagram = row.instagram;
-        if (row.facebook) extra_fields.facebook = row.facebook;
-        if (row.github) extra_fields.github = row.github;
-        if (row.tiktok) extra_fields.tiktok = row.tiktok;
-        if (row.youtube) extra_fields.youtube = row.youtube;
-        if (row.portfolio) extra_fields.portfolio = row.portfolio;
+        if (row.linkedin) extra_fields.linkedin = String(row.linkedin).trim();
+        if (row.twitter) extra_fields.twitter = String(row.twitter).trim();
+        if (row.instagram) extra_fields.instagram = String(row.instagram).trim();
+        if (row.facebook) extra_fields.facebook = String(row.facebook).trim();
+        if (row.github) extra_fields.github = String(row.github).trim();
+        if (row.tiktok) extra_fields.tiktok = String(row.tiktok).trim();
+        if (row.youtube) extra_fields.youtube = String(row.youtube).trim();
+        if (row.portfolio) extra_fields.portfolio = String(row.portfolio).trim();
         
         const is_active = row.is_active;
         const active = is_active && (String(is_active).toLowerCase() === 'yes' || is_active === '1' || is_active === 1) ? 1 : 0;
@@ -607,16 +629,18 @@ app.post('/api/vcards/import', authenticateToken, upload.single('file'), (req, r
                               linkedin, twitter, instagram, is_active, extra_fields)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
-          req.user.id, card_id, name, 
-          row.title || '', 
-          row.phone || '', 
+          req.user.id, 
+          card_id, 
+          name, 
+          String(row.title || '').trim(), 
+          String(row.phone || '').trim(), 
           email,
-          row.website || '', 
-          row.company || '', 
-          row.address || '',
-          row.linkedin || '', 
-          row.twitter || '', 
-          row.instagram || '',
+          String(row.website || '').trim(), 
+          String(row.company || '').trim(), 
+          String(row.address || '').trim(),
+          String(row.linkedin || '').trim(), 
+          String(row.twitter || '').trim(), 
+          String(row.instagram || '').trim(),
           active, 
           JSON.stringify(extra_fields)
         );
@@ -635,6 +659,7 @@ app.post('/api/vcards/import', authenticateToken, upload.single('file'), (req, r
     
     res.json(results);
   } catch (err) {
+    console.error('Import error:', err);
     res.status(400).json({ error: 'Failed to parse Excel file: ' + err.message });
   }
 });
