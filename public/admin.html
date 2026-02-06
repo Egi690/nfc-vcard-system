@@ -838,7 +838,6 @@ body {
           <div style="display:flex; gap:8px;">
             <button id="exportCardsBtn" class="btn btn-sm" style="background:var(--ios-green);">📤 Export</button>
             <button id="importCardsBtn" class="btn btn-sm" style="background:var(--ios-orange);">📥 Import</button>
-            <button id="downloadTemplateBtn" class="btn btn-sm btn-gray">📋 Template</button>
             <button id="createBtn" class="btn">Create Card</button>
           </div>
         </div>
@@ -855,10 +854,17 @@ body {
       <div class="section" style="margin-top:24px;">
         <div class="section-header">
           <h2>Deleted Cards</h2>
-          <div style="display:flex; gap:8px;">
-            <button id="emptyTrashBtn" class="btn btn-danger btn-sm">🗑️ Empty Trash</button>
-          </div>
         </div>
+        
+        <!-- Search & Filters -->
+        <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:200px;">
+            <input type="text" id="deletedSearch" placeholder="🔍 Search by name or card ID..." 
+              style="width:100%; padding:10px 14px; border:0.5px solid var(--ios-border); border-radius:var(--radius-sm); font-size:14px; background:var(--ios-card); color:var(--ios-text);">
+          </div>
+          <button id="clearDeletedFilters" class="btn btn-gray btn-sm">Clear Search</button>
+        </div>
+        
         <div id="deletedCardsContainer">
           <div class="empty-state"><h3>No Deleted Cards</h3><p>Deleted cards will appear here</p></div>
         </div>
@@ -870,7 +876,6 @@ body {
       <div class="section" style="margin-top:24px; padding-bottom:20px;">
         <div class="section-header">
           <h2>Summary Statistics</h2>
-          <button id="exportSummaryBtn" class="btn btn-sm" style="background:var(--ios-green);">📊 Export to Excel</button>
         </div>
         
         <!-- Date Range Filters -->
@@ -1516,6 +1521,7 @@ document.querySelectorAll('.tab-btn').forEach(function(btn){
 
 /* ── DELETED CARDS ── */
 var deletedCards = []; // Store deleted cards separately
+var allDeletedCards = []; // Store all deleted for filtering
 
 function loadDeletedCards(){
     fetch(apiUrl('/vcards?includeDeleted=true'), {
@@ -1525,14 +1531,33 @@ function loadDeletedCards(){
     .then(function(data){
         if(!data) return;
         deletedCards = data.filter(function(c){ return c.deleted_at; });
+        allDeletedCards = deletedCards; // Store for filtering
         // Merge with active cards for history view button
         cards = cards.concat(deletedCards.filter(function(dc){
             return !cards.find(function(c){ return c.id === dc.id; });
         }));
-        renderDeletedCards(deletedCards);
+        renderDeletedCards(allDeletedCards);
     })
     .catch(function(e){ console.error('loadDeletedCards',e); });
 }
+
+function filterDeletedCards(){
+    var searchTerm = document.getElementById('deletedSearch').value.toLowerCase();
+    
+    var filtered = allDeletedCards.filter(function(c){
+        return !searchTerm || 
+            c.name.toLowerCase().indexOf(searchTerm) !== -1 || 
+            c.card_id.toLowerCase().indexOf(searchTerm) !== -1;
+    });
+    
+    renderDeletedCards(filtered);
+}
+
+document.getElementById('deletedSearch').addEventListener('input', filterDeletedCards);
+document.getElementById('clearDeletedFilters').addEventListener('click', function(){
+    document.getElementById('deletedSearch').value = '';
+    renderDeletedCards(allDeletedCards);
+});
 
 function renderDeletedCards(deleted){
     var container = document.getElementById('deletedCardsContainer');
@@ -1550,11 +1575,10 @@ function renderDeletedCards(deleted){
             '<div class="card-item-title">' +
               '<h3>' + esc(c.name) + '</h3>' +
               '<p>' + esc(c.title || 'No title') + '</p>' +
-              '<span class="badge badge-inactive">Deleted ' + deletedDate + '</span>' +
+              '<span style="font-size:12px; color:var(--ios-text-tertiary);">Deleted ' + deletedDate + '</span>' +
             '</div>' +
             '<div class="card-item-actions">' +
               '<button class="btn btn-sm" style="background:var(--ios-green);" data-action="restore" data-id="' + c.id + '">↻ Restore</button>' +
-              '<button class="btn btn-danger btn-sm" data-action="permanent-delete" data-id="' + c.id + '" data-name="' + esc(c.name) + '">🗑️ Delete Forever</button>' +
             '</div>' +
           '</div>' +
           '<div class="card-item-info">' +
@@ -1576,7 +1600,6 @@ document.getElementById('deletedCardsContainer').addEventListener('click', funct
     var id = parseInt(btn.getAttribute('data-id'), 10);
     
     if(action === 'restore') restoreCard(id);
-    if(action === 'permanent-delete') permanentDeleteCard(id, btn.getAttribute('data-name'));
 });
 
 function restoreCard(id){
@@ -1589,70 +1612,6 @@ function restoreCard(id){
     .then(function(r){ if(r.ok){ flashSuccess('Card restored!'); loadCards(); loadDeletedCards(); } })
     .catch(function(){ alert('Connection error.'); });
 }
-
-function permanentDeleteCard(id, name){
-    if(!confirm('Permanently delete "'+name+'"? This cannot be undone!')) return;
-    
-    console.log('Attempting to permanently delete card ID:', id);
-    
-    fetch(apiUrl('/vcards/'+id+'/permanent'), {
-        method:'DELETE',
-        headers:{'Authorization':'Bearer '+token}
-    })
-    .then(function(r){ 
-        console.log('Delete response status:', r.status);
-        if(r.ok){ 
-            flashSuccess('Card permanently deleted!'); 
-            loadDeletedCards(); 
-        } else {
-            return r.json().then(function(data){ 
-                alert('Delete failed: ' + (data.error || 'Unknown error')); 
-            });
-        }
-    })
-    .catch(function(err){ 
-        console.error('Delete error:', err);
-        alert('Connection error.'); 
-    });
-}
-
-// Empty trash - permanently delete all deleted cards
-document.getElementById('emptyTrashBtn').addEventListener('click', function(){
-    if(!confirm('Permanently delete ALL cards in trash? This cannot be undone!')) return;
-    
-    fetch(apiUrl('/vcards?includeDeleted=true'), {
-        headers:{'Authorization':'Bearer '+token}
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(data){
-        var deleted = data.filter(function(c){ return c.deleted_at; });
-        
-        if(deleted.length === 0){
-            alert('Trash is already empty');
-            return;
-        }
-        
-        console.log('Deleting', deleted.length, 'cards');
-        
-        var promises = deleted.map(function(c){
-            console.log('Deleting card:', c.id, c.name);
-            return fetch(apiUrl('/vcards/'+c.id+'/permanent'), {
-                method:'DELETE',
-                headers:{'Authorization':'Bearer '+token}
-            });
-        });
-        return Promise.all(promises);
-    })
-    .then(function(responses){ 
-        console.log('All delete responses:', responses);
-        flashSuccess('Trash emptied!'); 
-        loadDeletedCards(); 
-    })
-    .catch(function(err){ 
-        console.error('Empty trash error:', err);
-        alert('Connection error.'); 
-    });
-});
 
 /* ── HISTORY ── */
 var allHistory = []; // Store all history for client-side filtering
@@ -1774,34 +1733,28 @@ document.getElementById('exportCardsBtn').addEventListener('click', function(){
     });
 });
 
-// Download template
-document.getElementById('downloadTemplateBtn').addEventListener('click', function(){
-    fetch(apiUrl('/vcards/template'))
-    .then(function(r){ return r.blob(); })
-    .then(function(blob){
-        var url = window.URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = 'vcard-import-template.xlsx';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-    })
-    .catch(function(){ alert('Download failed'); });
-});
-
 // Import cards
+var importInProgress = false;
+
 document.getElementById('importCardsBtn').addEventListener('click', function(){
+    if(importInProgress) return; // Prevent double-click
     document.getElementById('importFileInput').click();
 });
 
 document.getElementById('importFileInput').addEventListener('change', function(e){
+    if(importInProgress) return; // Prevent re-entry
+    
     var file = e.target.files[0];
-    if(!file) return;
+    if(!file) {
+        e.target.value = ''; // Reset
+        return;
+    }
+    
+    importInProgress = true;
     
     if(!confirm('Import cards from "' + file.name + '"?')) {
         e.target.value = '';
+        importInProgress = false;
         return;
     }
     
@@ -1828,10 +1781,12 @@ document.getElementById('importFileInput').addEventListener('change', function(e
     .catch(function(err){ 
         console.error(err);
         alert('Import failed'); 
+    })
+    .finally(function(){
+        // Reset input and flag
+        e.target.value = '';
+        importInProgress = false;
     });
-    
-    // Reset input
-    e.target.value = '';
 });
 
 /* ── SUMMARY STATISTICS WITH DATE FILTERS ── */
@@ -1856,30 +1811,6 @@ document.getElementById('resetSummaryDateBtn').addEventListener('click', functio
     document.getElementById('summaryFrom').value = '';
     document.getElementById('summaryTo').value = '';
     loadSummary();
-});
-
-document.getElementById('exportSummaryBtn').addEventListener('click', function(){
-    fetch(apiUrl('/summary/export'), {
-        headers: {'Authorization': 'Bearer ' + token}
-    })
-    .then(function(r){ 
-        if(!r.ok) throw new Error('Export failed');
-        return r.blob(); 
-    })
-    .then(function(blob){
-        var url = window.URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = 'summary-export-' + new Date().toISOString().slice(0,10) + '.xlsx';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-    })
-    .catch(function(err){ 
-        console.error(err);
-        alert('Export failed. Please try again.'); 
-    });
 });
 
 /* ── SUMMARY STATISTICS ── */
