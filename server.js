@@ -6,6 +6,10 @@ const Database = require('better-sqlite3');
 const bcrypt  = require('bcryptjs');
 const jwt     = require('jsonwebtoken');
 const path    = require('path');
+const XLSX    = require('xlsx');
+const multer  = require('multer');
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -473,7 +477,7 @@ app.get('/api/vcards/:id/stats', authenticateToken, (req, res) => {
 
 // ─── EXCEL EXPORT / IMPORT ──────────────────────
 
-// Export cards to Excel (simple CSV format since xlsx is not in dependencies)
+// Export cards to Excel
 app.get('/api/vcards/export', authenticateToken, (req, res) => {
   const includeDeleted = req.query.includeDeleted === 'true';
   const query = includeDeleted
@@ -482,121 +486,217 @@ app.get('/api/vcards/export', authenticateToken, (req, res) => {
   
   const cards = db.prepare(query).all(req.user.id);
   
-  // Generate CSV
-  const headers = ['card_id', 'name', 'title', 'phone', 'email', 'website', 'company', 'address', 'is_active'];
-  const rows = cards.map(c => {
+  // Prepare data for Excel
+  const data = cards.map(c => {
     const ef = JSON.parse(c.extra_fields || '{}');
-    return [
-      c.card_id,
-      c.name,
-      c.title || '',
-      c.phone || '',
-      c.email,
-      c.website || '',
-      c.company || '',
-      c.address || '',
-      c.is_active ? 'Yes' : 'No',
-      ef.linkedin || '',
-      ef.twitter || '',
-      ef.instagram || '',
-      ef.facebook || '',
-      ef.github || '',
-      ef.tiktok || '',
-      ef.youtube || '',
-      ef.portfolio || ''
-    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+    return {
+      card_id: c.card_id,
+      name: c.name,
+      title: c.title || '',
+      phone: c.phone || '',
+      email: c.email,
+      website: c.website || '',
+      company: c.company || '',
+      address: c.address || '',
+      is_active: c.is_active ? 'Yes' : 'No',
+      linkedin: ef.linkedin || '',
+      twitter: ef.twitter || '',
+      instagram: ef.instagram || '',
+      facebook: ef.facebook || '',
+      github: ef.github || '',
+      tiktok: ef.tiktok || '',
+      youtube: ef.youtube || '',
+      portfolio: ef.portfolio || ''
+    };
   });
   
-  const csv = [
-    [...headers, 'linkedin', 'twitter', 'instagram', 'facebook', 'github', 'tiktok', 'youtube', 'portfolio'].join(','),
-    ...rows
-  ].join('\n');
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Cards');
   
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="vcards_export.csv"');
-  res.send(csv);
+  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="vcards-export-' + new Date().toISOString().slice(0,10) + '.xlsx"');
+  res.send(buf);
 });
 
 // Download Excel template
 app.get('/api/vcards/template', (req, res) => {
-  const headers = ['card_id', 'name', 'title', 'phone', 'email', 'website', 'company', 'address', 'is_active', 'linkedin', 'twitter', 'instagram', 'facebook', 'github', 'tiktok', 'youtube', 'portfolio'];
-  const example = ['john-smith', 'John Smith', 'Software Engineer', '+1 555 123 4567', 'john@example.com', 'https://johnsmith.com', 'Tech Corp', '123 Main St, City, Country', 'Yes', 'https://linkedin.com/in/johnsmith', '', 'https://instagram.com/johnsmith', '', '', '', '', ''];
+  const template = [{
+    card_id: 'john-smith',
+    name: 'John Smith',
+    title: 'Software Engineer',
+    phone: '+1 555 123 4567',
+    email: 'john@example.com',
+    website: 'https://johnsmith.com',
+    company: 'Tech Corp',
+    address: '123 Main St, City, Country',
+    is_active: 'Yes',
+    linkedin: 'https://linkedin.com/in/johnsmith',
+    twitter: '',
+    instagram: 'https://instagram.com/johnsmith',
+    facebook: '',
+    github: '',
+    tiktok: '',
+    youtube: '',
+    portfolio: ''
+  }];
   
-  const csv = [
-    headers.join(','),
-    example.map(v => `"${v}"`).join(',')
-  ].join('\n');
+  const ws = XLSX.utils.json_to_sheet(template);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Template');
   
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="vcard_import_template.csv"');
-  res.send(csv);
+  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="vcard-import-template.xlsx"');
+  res.send(buf);
 });
 
-// Import cards from CSV
-app.post('/api/vcards/import', authenticateToken, (req, res) => {
-  const { rows } = req.body;
-  
-  if (!rows || !Array.isArray(rows)) {
-    return res.status(400).json({ error: 'Invalid import data' });
+// Import cards from Excel
+app.post('/api/vcards/import', authenticateToken, upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
   }
   
-  const results = { success: 0, failed: 0, errors: [] };
+  try {
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet);
+    
+    const results = { success: 0, failed: 0, errors: [] };
+    
+    rows.forEach((row, idx) => {
+      try {
+        const card_id = row.card_id || row['card_id'];
+        const name = row.name || row['name'];
+        const email = row.email || row['email'];
+        
+        if (!card_id || !name || !email) {
+          results.failed++;
+          results.errors.push(`Row ${idx + 2}: Missing required fields (card_id, name, email)`);
+          return;
+        }
+        
+        // Check if card_id already exists
+        const existing = db.prepare('SELECT id FROM vcards WHERE card_id = ?').get(card_id);
+        if (existing) {
+          results.failed++;
+          results.errors.push(`Row ${idx + 2}: Card ID "${card_id}" already exists`);
+          return;
+        }
+        
+        // Build extra_fields from social columns
+        const extra_fields = {};
+        if (row.linkedin) extra_fields.linkedin = row.linkedin;
+        if (row.twitter) extra_fields.twitter = row.twitter;
+        if (row.instagram) extra_fields.instagram = row.instagram;
+        if (row.facebook) extra_fields.facebook = row.facebook;
+        if (row.github) extra_fields.github = row.github;
+        if (row.tiktok) extra_fields.tiktok = row.tiktok;
+        if (row.youtube) extra_fields.youtube = row.youtube;
+        if (row.portfolio) extra_fields.portfolio = row.portfolio;
+        
+        const is_active = row.is_active;
+        const active = is_active && (String(is_active).toLowerCase() === 'yes' || is_active === '1' || is_active === 1) ? 1 : 0;
+        
+        db.prepare(`
+          INSERT INTO vcards (user_id, card_id, name, title, phone, email, website, company, address,
+                              linkedin, twitter, instagram, is_active, extra_fields)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          req.user.id, card_id, name, 
+          row.title || '', 
+          row.phone || '', 
+          email,
+          row.website || '', 
+          row.company || '', 
+          row.address || '',
+          row.linkedin || '', 
+          row.twitter || '', 
+          row.instagram || '',
+          active, 
+          JSON.stringify(extra_fields)
+        );
+        
+        // Log history
+        db.prepare('INSERT INTO card_history (user_id, card_id, card_name, action, details) VALUES (?, ?, ?, ?, ?)').run(
+          req.user.id, card_id, name, 'created', `Imported card: ${name}`
+        );
+        
+        results.success++;
+      } catch (err) {
+        results.failed++;
+        results.errors.push(`Row ${idx + 2}: ${err.message}`);
+      }
+    });
+    
+    res.json(results);
+  } catch (err) {
+    res.status(400).json({ error: 'Failed to parse Excel file: ' + err.message });
+  }
+});
+
+// Export detailed summary to Excel
+app.get('/api/summary/export', authenticateToken, (req, res) => {
+  // Get all cards with stats
+  const cards = db.prepare(`
+    SELECT * FROM vcards 
+    WHERE user_id = ? AND deleted_at IS NULL 
+    ORDER BY scan_count DESC
+  `).all(req.user.id);
   
-  rows.forEach((row, idx) => {
-    try {
-      const [card_id, name, title, phone, email, website, company, address, is_active, linkedin, twitter, instagram, facebook, github, tiktok, youtube, portfolio] = row;
-      
-      if (!card_id || !name || !email) {
-        results.failed++;
-        results.errors.push(`Row ${idx + 1}: Missing required fields (card_id, name, email)`);
-        return;
-      }
-      
-      // Check if card_id already exists
-      const existing = db.prepare('SELECT id FROM vcards WHERE card_id = ?').get(card_id);
-      if (existing) {
-        results.failed++;
-        results.errors.push(`Row ${idx + 1}: Card ID "${card_id}" already exists`);
-        return;
-      }
-      
-      // Build extra_fields from social columns
-      const extra_fields = {};
-      if (linkedin) extra_fields.linkedin = linkedin;
-      if (twitter) extra_fields.twitter = twitter;
-      if (instagram) extra_fields.instagram = instagram;
-      if (facebook) extra_fields.facebook = facebook;
-      if (github) extra_fields.github = github;
-      if (tiktok) extra_fields.tiktok = tiktok;
-      if (youtube) extra_fields.youtube = youtube;
-      if (portfolio) extra_fields.portfolio = portfolio;
-      
-      const active = is_active && (is_active.toLowerCase() === 'yes' || is_active === '1') ? 1 : 0;
-      
-      db.prepare(`
-        INSERT INTO vcards (user_id, card_id, name, title, phone, email, website, company, address,
-                            linkedin, twitter, instagram, is_active, extra_fields)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        req.user.id, card_id, name, title || '', phone || '', email,
-        website || '', company || '', address || '',
-        linkedin || '', twitter || '', instagram || '',
-        active, JSON.stringify(extra_fields)
-      );
-      
-      // Log history
-      db.prepare('INSERT INTO card_history (user_id, card_id, card_name, action, details) VALUES (?, ?, ?, ?, ?)').run(
-        req.user.id, card_id, name, 'created', `Imported card: ${name}`
-      );
-      
-      results.success++;
-    } catch (err) {
-      results.failed++;
-      results.errors.push(`Row ${idx + 1}: ${err.message}`);
-    }
+  const cardData = cards.map(c => {
+    const ef = JSON.parse(c.extra_fields || '{}');
+    return {
+      'Card ID': c.card_id,
+      'Name': c.name,
+      'Title': c.title || '',
+      'Email': c.email,
+      'Phone': c.phone || '',
+      'Company': c.company || '',
+      'Status': c.is_active ? 'Active' : 'Inactive',
+      'Total Scans': c.scan_count,
+      'Created': new Date(c.created_at).toLocaleString(),
+      'Last Updated': new Date(c.updated_at).toLocaleString(),
+      'LinkedIn': ef.linkedin || '',
+      'Twitter': ef.twitter || '',
+      'Instagram': ef.instagram || '',
+      'Facebook': ef.facebook || '',
+      'GitHub': ef.github || ''
+    };
   });
   
-  res.json(results);
+  // Summary stats
+  const totalCards = cards.length;
+  const activeCards = cards.filter(c => c.is_active).length;
+  const totalScans = cards.reduce((sum, c) => sum + c.scan_count, 0);
+  
+  const summaryData = [
+    { Metric: 'Total Cards', Value: totalCards },
+    { Metric: 'Active Cards', Value: activeCards },
+    { Metric: 'Inactive Cards', Value: totalCards - activeCards },
+    { Metric: 'Total Scans', Value: totalScans },
+    { Metric: 'Export Date', Value: new Date().toLocaleString() }
+  ];
+  
+  const wb = XLSX.utils.book_new();
+  
+  // Summary sheet
+  const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+  
+  // Cards detail sheet
+  const wsCards = XLSX.utils.json_to_sheet(cardData);
+  XLSX.utils.book_append_sheet(wb, wsCards, 'Card Details');
+  
+  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="summary-export-' + new Date().toISOString().slice(0,10) + '.xlsx"');
+  res.send(buf);
 });
 
 // ─── PUBLIC CARD PAGE ────────────────────────────
