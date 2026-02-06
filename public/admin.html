@@ -971,6 +971,7 @@ body {
                 <th>Card Name</th>
                 <th>Action</th>
                 <th>Details</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="historyTableBody">
@@ -1508,12 +1509,14 @@ document.querySelectorAll('.tab-btn').forEach(function(btn){
         document.getElementById('tab-'+tab).classList.add('active');
         
         if(tab === 'deleted') loadDeletedCards();
-        if(tab === 'history') loadHistory();
+        if(tab === 'history') { loadCards(); loadHistory(); } // Load cards for view button
         if(tab === 'summary') loadSummary();
     });
 });
 
 /* ── DELETED CARDS ── */
+var deletedCards = []; // Store deleted cards separately
+
 function loadDeletedCards(){
     fetch(apiUrl('/vcards?includeDeleted=true'), {
         headers:{'Authorization':'Bearer '+token}
@@ -1521,8 +1524,12 @@ function loadDeletedCards(){
     .then(function(r){ if(r.status===401){goToLogin();return null;} return r.json(); })
     .then(function(data){
         if(!data) return;
-        var deleted = data.filter(function(c){ return c.deleted_at; });
-        renderDeletedCards(deleted);
+        deletedCards = data.filter(function(c){ return c.deleted_at; });
+        // Merge with active cards for history view button
+        cards = cards.concat(deletedCards.filter(function(dc){
+            return !cards.find(function(c){ return c.id === dc.id; });
+        }));
+        renderDeletedCards(deletedCards);
     })
     .catch(function(e){ console.error('loadDeletedCards',e); });
 }
@@ -1654,7 +1661,7 @@ function renderHistory(history){
     var tbody = document.getElementById('historyTableBody');
     
     if(!history || history.length === 0){
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:40px; color:var(--ios-text-tertiary);">No history found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:40px; color:var(--ios-text-tertiary);">No history found</td></tr>';
         return;
     }
     
@@ -1662,13 +1669,50 @@ function renderHistory(history){
         var date = new Date(h.created_at);
         var actionClass = 'action-' + h.action;
         
+        // Find the card to show view button (only if not permanently deleted)
+        var card = cards.find(function(c){ return c.card_id === h.card_id; });
+        var viewBtn = card && !card.deleted_at 
+            ? '<button class="btn btn-xs" onclick="viewCardFromHistory(\'' + esc(h.card_id) + '\')">👁️ View</button>'
+            : '';
+        
         return '<tr>' +
             '<td>' + date.toLocaleString() + '</td>' +
             '<td><strong>' + esc(h.card_name) + '</strong><br><small style="color:var(--ios-text-tertiary);">' + esc(h.card_id) + '</small></td>' +
             '<td><span class="action-badge ' + actionClass + '">' + h.action.charAt(0).toUpperCase() + h.action.slice(1).replace('_', ' ') + '</span></td>' +
             '<td>' + esc(h.details || '') + '</td>' +
+            '<td>' + viewBtn + '</td>' +
         '</tr>';
     }).join('');
+}
+
+function viewCardFromHistory(cardId){
+    var card = cards.find(function(c){ return c.card_id === cardId; });
+    if(!card){
+        alert('Card not found');
+        return;
+    }
+    
+    // Switch to My Cards or Deleted tab depending on card status
+    if(card.deleted_at){
+        document.querySelector('.tab-btn[data-tab="deleted"]').click();
+    } else {
+        document.querySelector('.tab-btn[data-tab="cards"]').click();
+    }
+    
+    // Scroll to the card (give time for tab switch)
+    setTimeout(function(){
+        var cardElements = document.querySelectorAll('.card-item');
+        for(var i = 0; i < cardElements.length; i++){
+            if(cardElements[i].textContent.indexOf(card.name) !== -1){
+                cardElements[i].style.background = 'rgba(10,132,255,0.1)';
+                cardElements[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(function(){
+                    cardElements[i].style.background = '';
+                }, 2000);
+                break;
+            }
+        }
+    }, 300);
 }
 
 document.getElementById('refreshHistoryBtn').addEventListener('click', loadHistory);
@@ -1693,68 +1737,38 @@ document.getElementById('importFileInput').addEventListener('change', function(e
     var file = e.target.files[0];
     if(!file) return;
     
-    var reader = new FileReader();
-    reader.onload = function(event){
-        var csv = event.target.result;
-        var lines = csv.split('\n').filter(function(l){ return l.trim(); });
-        
-        if(lines.length < 2){
-            alert('File is empty or invalid');
-            return;
-        }
-        
-        // Skip header row
-        var dataRows = lines.slice(1).map(function(line){
-            // Parse CSV (simple implementation)
-            var values = [];
-            var current = '';
-            var inQuotes = false;
-            
-            for(var i = 0; i < line.length; i++){
-                var char = line[i];
-                if(char === '"' && (i === 0 || line[i-1] !== '\\')){
-                    inQuotes = !inQuotes;
-                } else if(char === ',' && !inQuotes){
-                    values.push(current.trim());
-                    current = '';
-                } else {
-                    current += char;
-                }
-            }
-            values.push(current.trim());
-            
-            // Remove surrounding quotes
-            return values.map(function(v){ 
-                return v.replace(/^"(.*)"$/, '$1').replace(/""/g, '"'); 
-            });
-        });
-        
-        if(!confirm('Import ' + dataRows.length + ' cards?')) return;
-        
-        fetch(apiUrl('/vcards/import'), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
-            },
-            body: JSON.stringify({ rows: dataRows })
-        })
-        .then(function(r){ return r.json(); })
-        .then(function(result){
-            var msg = 'Import complete!\n\nSuccess: ' + result.success + '\nFailed: ' + result.failed;
-            if(result.errors.length > 0){
-                msg += '\n\nErrors:\n' + result.errors.slice(0, 5).join('\n');
-                if(result.errors.length > 5) msg += '\n... and ' + (result.errors.length - 5) + ' more';
-            }
-            alert(msg);
-            loadCards();
-        })
-        .catch(function(){ alert('Import failed'); });
-        
-        // Reset input
+    if(!confirm('Import cards from "' + file.name + '"?')) {
         e.target.value = '';
-    };
-    reader.readAsText(file);
+        return;
+    }
+    
+    var formData = new FormData();
+    formData.append('file', file);
+    
+    fetch(apiUrl('/vcards/import'), {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + token
+        },
+        body: formData
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(result){
+        var msg = 'Import complete!\n\nSuccess: ' + result.success + '\nFailed: ' + result.failed;
+        if(result.errors && result.errors.length > 0){
+            msg += '\n\nErrors:\n' + result.errors.slice(0, 5).join('\n');
+            if(result.errors.length > 5) msg += '\n... and ' + (result.errors.length - 5) + ' more';
+        }
+        alert(msg);
+        loadCards();
+    })
+    .catch(function(err){ 
+        console.error(err);
+        alert('Import failed'); 
+    });
+    
+    // Reset input
+    e.target.value = '';
 });
 
 /* ── SUMMARY STATISTICS WITH DATE FILTERS ── */
@@ -1782,31 +1796,7 @@ document.getElementById('resetSummaryDateBtn').addEventListener('click', functio
 });
 
 document.getElementById('exportSummaryBtn').addEventListener('click', function(){
-    // Export summary as CSV
-    var data = [
-        ['Metric', 'Value'],
-        ['Total Cards', document.getElementById('summaryTotalCards').textContent],
-        ['Active Cards', document.getElementById('summaryActiveCards').textContent],
-        ['Inactive Cards', document.getElementById('summaryInactiveCards').textContent],
-        ['Deleted Cards', document.getElementById('summaryDeletedCards').textContent],
-        ['Total Scans', document.getElementById('summaryTotalScans').textContent],
-        ['Scans Today', document.getElementById('summaryScansToday').textContent],
-        ['Scans This Week', document.getElementById('summaryScansWeek').textContent.replace(' this week', '')],
-        ['Scans This Month', document.getElementById('summaryScansMonth').textContent],
-        ['Cards Created (Last 7 Days)', document.getElementById('summaryRecentCreated').textContent],
-        ['Cards Deleted (Last 7 Days)', document.getElementById('summaryRecentDeleted').textContent]
-    ];
-    
-    var csv = data.map(function(row){ return row.join(','); }).join('\n');
-    var blob = new Blob([csv], { type: 'text/csv' });
-    var url = window.URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'summary_export_' + new Date().toISOString().slice(0,10) + '.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    window.location.href = apiUrl('/summary/export') + '?authorization=' + encodeURIComponent('Bearer ' + token);
 });
 
 /* ── SUMMARY STATISTICS ── */
