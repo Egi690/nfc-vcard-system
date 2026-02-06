@@ -1593,12 +1593,27 @@ function restoreCard(id){
 function permanentDeleteCard(id, name){
     if(!confirm('Permanently delete "'+name+'"? This cannot be undone!')) return;
     
+    console.log('Attempting to permanently delete card ID:', id);
+    
     fetch(apiUrl('/vcards/'+id+'/permanent'), {
         method:'DELETE',
         headers:{'Authorization':'Bearer '+token}
     })
-    .then(function(r){ if(r.ok){ flashSuccess('Card permanently deleted!'); loadDeletedCards(); } })
-    .catch(function(){ alert('Connection error.'); });
+    .then(function(r){ 
+        console.log('Delete response status:', r.status);
+        if(r.ok){ 
+            flashSuccess('Card permanently deleted!'); 
+            loadDeletedCards(); 
+        } else {
+            return r.json().then(function(data){ 
+                alert('Delete failed: ' + (data.error || 'Unknown error')); 
+            });
+        }
+    })
+    .catch(function(err){ 
+        console.error('Delete error:', err);
+        alert('Connection error.'); 
+    });
 }
 
 // Empty trash - permanently delete all deleted cards
@@ -1611,7 +1626,16 @@ document.getElementById('emptyTrashBtn').addEventListener('click', function(){
     .then(function(r){ return r.json(); })
     .then(function(data){
         var deleted = data.filter(function(c){ return c.deleted_at; });
+        
+        if(deleted.length === 0){
+            alert('Trash is already empty');
+            return;
+        }
+        
+        console.log('Deleting', deleted.length, 'cards');
+        
         var promises = deleted.map(function(c){
+            console.log('Deleting card:', c.id, c.name);
             return fetch(apiUrl('/vcards/'+c.id+'/permanent'), {
                 method:'DELETE',
                 headers:{'Authorization':'Bearer '+token}
@@ -1619,8 +1643,15 @@ document.getElementById('emptyTrashBtn').addEventListener('click', function(){
         });
         return Promise.all(promises);
     })
-    .then(function(){ flashSuccess('Trash emptied!'); loadDeletedCards(); })
-    .catch(function(){ alert('Connection error.'); });
+    .then(function(responses){ 
+        console.log('All delete responses:', responses);
+        flashSuccess('Trash emptied!'); 
+        loadDeletedCards(); 
+    })
+    .catch(function(err){ 
+        console.error('Empty trash error:', err);
+        alert('Connection error.'); 
+    });
 });
 
 /* ── HISTORY ── */
@@ -1672,7 +1703,7 @@ function renderHistory(history){
         // Find the card to show view button (only if not permanently deleted)
         var card = cards.find(function(c){ return c.card_id === h.card_id; });
         var viewBtn = card && !card.deleted_at 
-            ? '<button class="btn btn-xs" onclick="viewCardFromHistory(\'' + esc(h.card_id) + '\')">👁️ View</button>'
+            ? '<button class="btn btn-xs" onclick="viewCardFromHistory(\'' + esc(h.card_id) + '\')">View</button>'
             : '';
         
         return '<tr>' +
@@ -1718,14 +1749,46 @@ function viewCardFromHistory(cardId){
 document.getElementById('refreshHistoryBtn').addEventListener('click', loadHistory);
 
 /* ── IMPORT / EXPORT CARDS ── */
-// Export cards to CSV
+// Export cards to Excel
 document.getElementById('exportCardsBtn').addEventListener('click', function(){
-    window.location.href = apiUrl('/vcards/export') + '?authorization=' + encodeURIComponent('Bearer ' + token);
+    fetch(apiUrl('/vcards/export'), {
+        headers: {'Authorization': 'Bearer ' + token}
+    })
+    .then(function(r){ 
+        if(!r.ok) throw new Error('Export failed');
+        return r.blob(); 
+    })
+    .then(function(blob){
+        var url = window.URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'vcards-export-' + new Date().toISOString().slice(0,10) + '.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    })
+    .catch(function(err){ 
+        console.error(err);
+        alert('Export failed. Please try again.'); 
+    });
 });
 
 // Download template
 document.getElementById('downloadTemplateBtn').addEventListener('click', function(){
-    window.location.href = apiUrl('/vcards/template');
+    fetch(apiUrl('/vcards/template'))
+    .then(function(r){ return r.blob(); })
+    .then(function(blob){
+        var url = window.URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'vcard-import-template.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    })
+    .catch(function(){ alert('Download failed'); });
 });
 
 // Import cards
@@ -1796,7 +1859,27 @@ document.getElementById('resetSummaryDateBtn').addEventListener('click', functio
 });
 
 document.getElementById('exportSummaryBtn').addEventListener('click', function(){
-    window.location.href = apiUrl('/summary/export') + '?authorization=' + encodeURIComponent('Bearer ' + token);
+    fetch(apiUrl('/summary/export'), {
+        headers: {'Authorization': 'Bearer ' + token}
+    })
+    .then(function(r){ 
+        if(!r.ok) throw new Error('Export failed');
+        return r.blob(); 
+    })
+    .then(function(blob){
+        var url = window.URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'summary-export-' + new Date().toISOString().slice(0,10) + '.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    })
+    .catch(function(err){ 
+        console.error(err);
+        alert('Export failed. Please try again.'); 
+    });
 });
 
 /* ── SUMMARY STATISTICS ── */
