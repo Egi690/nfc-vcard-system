@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Digital Contact</title>
+    <style>
+        *, *::before, *::after {
+            margin: 0; padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            /* macOS vibrancy materials */
+            --material-thin:      rgba(255, 255, 255, 0.60);
+            --material-regular:   rgba(255, 255, 255, 0.72);
+            --material-thick:     rgba(255, 255, 255, 0.86);
+            --material-ultra:     rgba(255, 255, 255, 0.94);
+            --separator:          rgba(0, 0, 0, 0.08);
+            --separator-heavy:    rgba(0, 0, 0, 0.12);
+            --text-primary:       rgba(0, 0, 0, 0.88);
+            --text-secondary:     rgba(0, 0, 0, 0.55);
+            --text-tertiary:      rgba(0, 0, 0, 0.35);
+            --accent:             #007AFF;
+            --accent-hover:       #0051D5;
+            --destructive:        #FF3B30;
+            --success:            #34C759;
+            --blur-strong:        blur(60px) saturate(180%);
+            --blur-medium:        blur(40px) saturate(165%);
+            --blur-light:         blur(20px) saturate(140%);
+            --shadow-card:        0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+            --shadow-float:       0 16px 64px rgba(0, 0, 0, 0.14), 0 4px 16px rgba(0, 0, 0, 0.10);
+            --shadow-elevated:    0 24px 96px rgba(0, 0, 0, 0.16), 0 8px 24px rgba(0, 0, 0, 0.12);
+            --radius-sm:          8px;
+            --radius-md:          12px;
+            --radius-lg:          16px;
+            --radius-xl:          20px;
+            --spring:             cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            --bounce:             cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        html {
+            height: 100%;
+            font-size: 16px;
+        }
+
+        body {
+            min-height: 100dvh;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+            color: var(--text-primary);
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 50%, #90caf9 100%);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            overflow-x: hidden;
+        }
+
+        /* ══════════════════════════════════
+           ADAPTIVE BACKGROUND LAYER
+        ══════════════════════════════════ */
+        .wallpaper {
+            position: fixed; inset: 0; z-index: 0;
+            background: 
+                radial-gradient(ellipse 120% 90% at 25% 15%,  rgba(100, 181, 246, 0.35) 0%, transparent 50%),
+                radial-gradient(ellipse 90%  120% at 80% 85%, rgba(66, 165, 245, 0.30) 0%, transparent 55%),
+                radial-gradient(ellipse 100% 80% at 50% 50%,  rgba(144, 202, 249, 0.20) 0%, transparent 70%),
+                linear-gradient(160deg, #e3f2fd 0%, #90caf9 60%, #64b5f6 100%);
+        }
+
+        /* Subtle grain overlay */
+        .wallpaper::after {
+            content: '';
+            position: absolute; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+        }
+
+        /* ══════════════════════════════════
+           PAGE CONTAINER
+        ══════════════════════════════════ */
+        .scene {
+            position: relative; z-index: 2;
+            min-height: 100dvh;
+            display: flex; flex-direction: column;
+            align-items: center;
+            padding: 24px 20px 48px;
+        }
+
+        /* ══════════════════════════════════
+           STATUS BAR (macOS-style)
+        ══════════════════════════════════ */
+        .status-bar {
+            width: 100%; max-width: 420px;
+            padding: 12px 0;
+            display: flex; justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .status-pill {
+            display: flex; align-items: center; gap: 6px;
+            padding: 6px 14px;
+            border-radius: 100px;
+            background: var(--material-regular);
+            backdrop-filter: var(--blur-light);
+            -webkit-backdrop-filter: var(--blur-light);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.5);
+            border: 0.5px solid rgba(255,255,255,0.4);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            letter-spacing: 0.01em;
+        }
+
+        .status-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 6px rgba(52,199,89,0.6);
+            animation: pulse 2.2s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.7;transform:scale(0.9)} }
+
+        /* ══════════════════════════════════
+           MAIN CARD (frosted glass material)
+        ══════════════════════════════════ */
+        .card-wrap {
+            width: 100%; max-width: 420px;
+            margin-bottom: 16px;
+        }
+
+        .card {
+            position: relative;
+            background: var(--material-thick);
+            backdrop-filter: var(--blur-strong);
+            -webkit-backdrop-filter: var(--blur-strong);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-elevated);
+            border: 0.5px solid rgba(255,255,255,0.6);
+            overflow: hidden;
+            animation: cardEnter 0.6s var(--spring) both;
+        }
+
+        @keyframes cardEnter {
+            from { opacity: 0; transform: translateY(32px) scale(0.96); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Inner glow highlight */
+        .card::before {
+            content: '';
+            position: absolute; top: 0; left: 8%; right: 8%; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
+        }
+
+        /* Card body */
+        .card-body {
+            padding: 32px 28px 28px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        /* Avatar with subtle shadow lift */
+        .avatar-ring {
+            position: relative;
+            width: 88px; height: 88px;
+            margin-bottom: 18px;
+        }
+
+        .avatar {
+            width: 88px; height: 88px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #42a5f5, #1e88e5);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 32px; font-weight: 600;
+            color: #fff;
+            letter-spacing: -0.5px;
+            box-shadow: 
+                0 8px 24px rgba(33,150,243,0.35),
+                0 2px 8px rgba(0,0,0,0.12),
+                inset 0 1px 0 rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .profile-name {
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: -0.4px;
+            color: var(--text-primary);
+            text-align: center;
+            margin-bottom: 4px;
+        }
+
+        .profile-role {
+            font-size: 13px;
+            font-weight: 400;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        /* ────────────────────────────────
+           AQUA BUTTON (macOS style)
+        ──────────────────────────────── */
+        .btn-aqua {
+            position: relative;
+            width: 100%;
+            padding: 12px 20px;
+            border-radius: var(--radius-md);
+            border: none;
+            background: linear-gradient(180deg, #5daaff 0%, #007aff 100%);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 500;
+            letter-spacing: -0.2px;
+            cursor: pointer;
+            box-shadow: 
+                0 1px 3px rgba(0,122,255,0.3),
+                inset 0 1px 0 rgba(255,255,255,0.4);
+            transition: all 0.15s var(--spring);
+            overflow: hidden;
+        }
+
+        /* Top gloss */
+        .btn-aqua::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; height: 48%;
+            background: linear-gradient(rgba(255,255,255,0.25), transparent);
+            pointer-events: none;
+        }
+
+        .btn-aqua:hover {
+            background: linear-gradient(180deg, #6bb4ff 0%, #0088ff 100%);
+            box-shadow: 0 2px 6px rgba(0,122,255,0.35), inset 0 1px 0 rgba(255,255,255,0.45);
+            transform: translateY(-1px);
+        }
+
+        .btn-aqua:active {
+            transform: translateY(0) scale(0.98);
+            box-shadow: 0 1px 3px rgba(0,122,255,0.25), inset 0 1px 0 rgba(255,255,255,0.35);
+        }
+
+        /* ══════════════════════════════════
+           INFO SECTIONS
+        ══════════════════════════════════ */
+        .content {
+            width: 100%; max-width: 420px;
+            display: flex; flex-direction: column;
+            gap: 12px;
+        }
+
+        .section-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-tertiary);
+            padding: 0 4px 6px;
+        }
+
+        .info-card {
+            background: var(--material-regular);
+            backdrop-filter: var(--blur-medium);
+            -webkit-backdrop-filter: var(--blur-medium);
+            border-radius: var(--radius-lg);
+            border: 0.5px solid rgba(255,255,255,0.5);
+            box-shadow: var(--shadow-card);
+            overflow: hidden;
+            animation: cardEnter 0.6s var(--spring) both;
+        }
+        .info-card:nth-of-type(3) { animation-delay: 0.08s; }
+        .info-card:nth-of-type(4) { animation-delay: 0.16s; }
+
+        /* Info rows */
+        .info-row {
+            display: flex; align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 0.5px solid var(--separator);
+            transition: background 0.15s ease;
+            cursor: default;
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-row:active { background: rgba(0,0,0,0.04); }
+
+        .row-icon {
+            width: 32px; height: 32px;
+            flex-shrink: 0;
+            border-radius: 8px;
+            background: rgba(0,122,255,0.10);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px;
+        }
+
+        .row-text { flex: 1; min-width: 0; }
+
+        .row-label {
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--text-tertiary);
+            margin-bottom: 2px;
+        }
+
+        .row-value {
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--text-primary);
+            word-break: break-word;
+        }
+
+        .row-value a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .row-chevron {
+            font-size: 14px;
+            color: var(--text-tertiary);
+            font-weight: 300;
+        }
+
+        /* ══════════════════════════════════
+           SOCIAL GRID
+        ══════════════════════════════════ */
+        .social-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+            gap: 10px;
+            padding: 14px;
+        }
+
+        .social-chip {
+            display: flex; flex-direction: column;
+            align-items: center; gap: 6px;
+            padding: 14px 8px;
+            border-radius: var(--radius-md);
+            background: rgba(0,0,0,0.03);
+            border: 0.5px solid var(--separator);
+            text-decoration: none;
+            transition: all 0.15s var(--spring);
+        }
+
+        .social-chip:hover {
+            background: rgba(0,122,255,0.08);
+            border-color: rgba(0,122,255,0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .social-chip:active {
+            transform: translateY(0) scale(0.96);
+        }
+
+        .chip-icon { font-size: 22px; line-height: 1; }
+        .chip-label {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        /* ══════════════════════════════════
+           FOOTER
+        ══════════════════════════════════ */
+        .footer {
+            margin-top: 16px;
+            padding: 12px 18px;
+            border-radius: var(--radius-md);
+            background: var(--material-thin);
+            backdrop-filter: var(--blur-light);
+            -webkit-backdrop-filter: var(--blur-light);
+            border: 0.5px solid rgba(255,255,255,0.4);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-tertiary);
+            text-align: center;
+            letter-spacing: 0.02em;
+        }
+
+        /* ══════════════════════════════════
+           LOADING STATE
+        ══════════════════════════════════ */
+        .loading-state {
+            position: fixed; inset: 0; z-index: 100;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 20px;
+            background: linear-gradient(135deg, #e3f2fd 0%, #90caf9 100%);
+            backdrop-filter: blur(40px);
+        }
+
+        .spinner {
+            width: 44px; height: 44px;
+            border-radius: 50%;
+            border: 3px solid rgba(0,122,255,0.15);
+            border-top-color: var(--accent);
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .load-text {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        /* ══════════════════════════════════
+           ERROR STATE
+        ══════════════════════════════════ */
+        .error-state {
+            display: none;
+            position: fixed; inset: 0; z-index: 100;
+            flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 16px; padding: 40px; text-align: center;
+            background: linear-gradient(135deg, #e3f2fd 0%, #90caf9 100%);
+        }
+
+        .err-icon { font-size: 64px; }
+
+        .err-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: -0.3px;
+        }
+
+        .err-msg {
+            font-size: 14px;
+            color: var(--text-secondary);
+            max-width: 280px;
+            line-height: 1.5;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<!-- Wallpaper layer -->
+<div class="wallpaper"></div>
+
+<!-- Loading -->
+<div id="loadingState" class="loading-state">
+    <div class="spinner"></div>
+    <p class="load-text">Loading contact</p>
+</div>
+
+<!-- Error -->
+<div id="errorState" class="error-state">
+    <div class="err-icon">🔍</div>
+    <h2 class="err-title">Not Found</h2>
+    <p class="err-msg">This digital contact card could not be found or is no longer active.</p>
+</div>
+
+<!-- Main -->
+<div id="mainContent" class="hidden">
+<div class="scene">
+
+    <!-- Status bar -->
+    <div class="status-bar">
+        <div class="status-pill">
+            <div class="status-dot"></div>
+            <span>Active</span>
+        </div>
+    </div>
+
+    <!-- Profile card -->
+    <div class="card-wrap">
+        <div class="card">
+            <div class="card-body">
+                <div class="avatar-ring">
+                    <div class="avatar" id="avatar"></div>
+                </div>
+
+                <h1 class="profile-name" id="name"></h1>
+                <p class="profile-role" id="cardTitle"></p>
+
+                <button class="btn-aqua" id="saveBtn">
+                    Save Contact
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info sections -->
+    <div class="content">
+        <p class="section-label">Contact Information</p>
+        <div class="info-card" id="contactInfo"></div>
+
+        <!-- Social -->
+        <div id="socialWrap" style="display:none;">
+            <p class="section-label">Connect</p>
+            <div class="info-card">
+                <div class="social-grid" id="socialGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        Digital Business Card
+    </div>
+
+</div>
+</div>
+
+<script>
+const API_URL = window.location.origin + '/api';
+let cardData = null;
+
+const parts = window.location.pathname.split('/');
+const cardId = parts[parts.length - 1] || parts[parts.length - 2];
+
+const SOCIAL = {
+    linkedin:  { icon: '💼', label: 'LinkedIn'  },
+    twitter:   { icon: '𝕏',  label: 'Twitter'   },
+    instagram: { icon: '📸', label: 'Instagram' },
+    facebook:  { icon: '📘', label: 'Facebook'  },
+    github:    { icon: '🐙', label: 'GitHub'    },
+    tiktok:    { icon: '🎵', label: 'TikTok'    },
+    youtube:   { icon: '▶️', label: 'YouTube'   },
+    portfolio: { icon: '🗂️', label: 'Portfolio' }
+};
+
+async function loadCard() {
+    try {
+        const r = await fetch(`${API_URL}/vcard/${cardId}`);
+        if (r.ok) { cardData = await r.json(); displayCard(); }
+        else showError();
+    } catch { showError(); }
+}
+
+function displayCard() {
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('mainContent').classList.remove('hidden');
+
+    const init = cardData.name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+    document.getElementById('avatar').textContent = init;
+    document.getElementById('name').textContent = cardData.name;
+    document.getElementById('cardTitle').textContent = cardData.title || '';
+    document.title = `${cardData.name} — Contact`;
+
+    buildContact();
+    buildSocial();
+    document.getElementById('saveBtn').addEventListener('click', saveVCard);
+}
+
+function buildContact() {
+    const fields = [
+        { k:'phone',   icon:'📱', label:'Phone',   link: v=>`tel:${v}` },
+        { k:'email',   icon:'✉️',  label:'Email',   link: v=>`mailto:${v}` },
+        { k:'website', icon:'🌐', label:'Website', link: v=>v.startsWith('http')?v:`https://${v}` },
+        { k:'company', icon:'🏢', label:'Company', link: null },
+        { k:'address', icon:'📍', label:'Address', link: null },
+    ];
+
+    let html = '';
+    fields.forEach(f => {
+        if (!cardData[f.k]) return;
+        const val = cardData[f.k];
+        const inner = f.link
+            ? `<a href="${f.link(val)}" target="_blank">${val}</a>`
+            : val;
+        html += `
+        <div class="info-row">
+            <div class="row-icon">${f.icon}</div>
+            <div class="row-text">
+                <div class="row-label">${f.label}</div>
+                <div class="row-value">${inner}</div>
+            </div>
+            ${f.link ? '<div class="row-chevron">›</div>' : ''}
+        </div>`;
+    });
+
+    document.getElementById('contactInfo').innerHTML = html ||
+        '<div class="info-row"><div class="row-value" style="color:var(--text-secondary);padding:4px 0">No contact info</div></div>';
+}
+
+function buildSocial() {
+    const ef = cardData.extra_fields || {};
+    const keys = Object.keys(ef).filter(k => SOCIAL[k] && ef[k]);
+    if (!keys.length) return;
+
+    document.getElementById('socialWrap').style.display = 'block';
+    document.getElementById('socialGrid').innerHTML = keys.map(k => `
+        <a href="${ef[k]}" target="_blank" class="social-chip">
+            <span class="chip-icon">${SOCIAL[k].icon}</span>
+            <span class="chip-label">${SOCIAL[k].label}</span>
+        </a>`).join('');
+}
+
+function showError() {
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('errorState').style.display = 'flex';
+}
+
+function saveVCard() {
+    if (!cardData) return;
+    const ef = cardData.extra_fields || {};
+    const lines = [
+        'BEGIN:VCARD', 'VERSION:3.0',
+        `FN:${cardData.name}`,
+        `N:${cardData.name.split(' ').reverse().join(';')}`,
+        cardData.title   ? `TITLE:${cardData.title}`            : '',
+        cardData.phone   ? `TEL;TYPE=CELL:${cardData.phone}`    : '',
+        cardData.email   ? `EMAIL:${cardData.email}`            : '',
+        cardData.website ? `URL:${cardData.website}`            : '',
+        cardData.company ? `ORG:${cardData.company}`            : '',
+        cardData.address ? `ADR;TYPE=WORK:;;${cardData.address}`: '',
+        ...Object.keys(ef).map(k => ef[k] ? `X-SOCIALPROFILE;TYPE=${k}:${ef[k]}` : ''),
+        'END:VCARD'
+    ].filter(Boolean).join('\n');
+
+    const blob = new Blob([lines], { type: 'text/vcard;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), { href: url, download: `${cardData.name.replace(/\s+/g,'_')}.vcf` });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+loadCard();
+</script>
+</body>
+</html>
